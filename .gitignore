@@ -1,0 +1,20 @@
+# Local research artifacts
+.tmp/
+.worktrees/
+
+# Rust
+target/
+**/target/
+
+# Node / GUI
+node_modules/
+dist/
+coverage/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
