@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "apps/cli",
+  "apps/gui",
+  "crates/doctor-core",
+]
+resolver = "2"
