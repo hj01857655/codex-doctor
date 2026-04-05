@@ -89,13 +89,16 @@ pub fn scan_codex_home(codex_home: &Path) -> Result<ScanReport, String> {
         root_config,
         rollout_records: active_rollouts
             .into_iter()
-            .chain(archived_rollouts.into_iter())
+            .chain(archived_rollouts)
             .collect(),
         sqlite_threads,
     })
 }
 
-fn read_rollouts_in_dir(dir: &Path, location: ThreadLocation) -> Result<Vec<RolloutRecord>, String> {
+fn read_rollouts_in_dir(
+    dir: &Path,
+    location: ThreadLocation,
+) -> Result<Vec<RolloutRecord>, String> {
     if !dir.exists() {
         return Ok(Vec::new());
     }

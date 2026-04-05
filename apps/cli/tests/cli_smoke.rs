@@ -180,8 +180,14 @@ fn repair_dry_run_json_outputs_execution_report() {
     ]);
 
     assert!(output["backup"].is_null());
-    assert_eq!(output["applied"].as_array().expect("applied array").len(), 0);
-    assert!(!output["skipped"].as_array().expect("skipped array").is_empty());
+    assert_eq!(
+        output["applied"].as_array().expect("applied array").len(),
+        0
+    );
+    assert!(!output["skipped"]
+        .as_array()
+        .expect("skipped array")
+        .is_empty());
 }
 
 #[test]

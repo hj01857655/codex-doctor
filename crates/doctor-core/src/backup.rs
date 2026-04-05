@@ -27,7 +27,10 @@ pub struct BackupPruneReport {
     pub removed_backup_ids: Vec<String>,
 }
 
-pub fn create_backup_snapshot(codex_home: &Path, backups_root: &Path) -> Result<BackupSnapshot, String> {
+pub fn create_backup_snapshot(
+    codex_home: &Path,
+    backups_root: &Path,
+) -> Result<BackupSnapshot, String> {
     fs::create_dir_all(backups_root).map_err(|err| err.to_string())?;
 
     let layout = CodexLayout::from_codex_home(codex_home);
@@ -101,15 +104,24 @@ pub fn list_backups(backups_root: &Path) -> Result<Vec<BackupManifest>, String> 
 pub fn restore_backup(snapshot_dir: &Path, codex_home: &Path) -> Result<(), String> {
     let target_layout = CodexLayout::from_codex_home(codex_home);
 
-    restore_file(&snapshot_dir.join("config.toml"), &target_layout.config_toml)?;
+    restore_file(
+        &snapshot_dir.join("config.toml"),
+        &target_layout.config_toml,
+    )?;
     restore_dir(&snapshot_dir.join("sessions"), &target_layout.sessions_dir)?;
     restore_dir(
         &snapshot_dir.join("archived_sessions"),
         &target_layout.archived_sessions_dir,
     )?;
-    restore_file(&snapshot_dir.join("state_5.sqlite"), &target_layout.state_db)?;
+    restore_file(
+        &snapshot_dir.join("state_5.sqlite"),
+        &target_layout.state_db,
+    )?;
     restore_file(&snapshot_dir.join("logs_2.sqlite"), &target_layout.logs_db)?;
-    restore_file(&snapshot_dir.join("history.jsonl"), &target_layout.history_jsonl)?;
+    restore_file(
+        &snapshot_dir.join("history.jsonl"),
+        &target_layout.history_jsonl,
+    )?;
 
     Ok(())
 }

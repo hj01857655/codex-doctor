@@ -158,7 +158,10 @@ fn refresh_updates_dashboard_state_from_codex_home_input() {
     app.refresh().expect("refresh dashboard");
 
     let dashboard = app.dashboard.as_ref().expect("dashboard state");
-    assert_eq!(dashboard.codex_home, codex_home.path().display().to_string());
+    assert_eq!(
+        dashboard.codex_home,
+        codex_home.path().display().to_string()
+    );
     assert!(dashboard
         .summary_items
         .iter()
@@ -175,7 +178,10 @@ fn preview_action_updates_preview_summary_after_refresh() {
     app.refresh().expect("refresh dashboard");
     app.preview_repair().expect("preview repair");
 
-    assert!(app.preview_actions().iter().any(|action| action == "patch_config_model_provider"));
+    assert!(app
+        .preview_actions()
+        .iter()
+        .any(|action| action == "patch_config_model_provider"));
     assert!(app.preview_summary.contains("patch_config_model_provider"));
     assert_eq!(app.status_message, "Previewed: 1");
     assert_eq!(app.preview_repair_label(), "Preview repair");

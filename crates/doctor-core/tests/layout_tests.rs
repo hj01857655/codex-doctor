@@ -23,6 +23,12 @@ fn respects_sqlite_home_override() {
     );
 
     assert_eq!(layout.sqlite_home, PathBuf::from("/tmp/sqlite-home"));
-    assert_eq!(layout.state_db, PathBuf::from("/tmp/sqlite-home/state_5.sqlite"));
-    assert_eq!(layout.logs_db, PathBuf::from("/tmp/sqlite-home/logs_2.sqlite"));
+    assert_eq!(
+        layout.state_db,
+        PathBuf::from("/tmp/sqlite-home/state_5.sqlite")
+    );
+    assert_eq!(
+        layout.logs_db,
+        PathBuf::from("/tmp/sqlite-home/logs_2.sqlite")
+    );
 }

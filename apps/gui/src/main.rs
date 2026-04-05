@@ -12,6 +12,10 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Codex Doctor",
         options,
-        Box::new(move |_cc| Ok(Box::new(CodexDoctorApp::new(codex_home.display().to_string())))),
+        Box::new(move |_cc| {
+            Ok(Box::new(CodexDoctorApp::new(
+                codex_home.display().to_string(),
+            )))
+        }),
     )
 }

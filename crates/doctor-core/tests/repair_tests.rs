@@ -143,7 +143,12 @@ fn upserts_missing_sqlite_thread_row_from_rollout_metadata() {
     assert!(thread.archived_at.is_none());
     assert_eq!(report.applied.len(), 1);
     assert!(report.failed.is_empty());
-    assert_eq!(list_backups(backups_root.path()).expect("list backups").len(), 1);
+    assert_eq!(
+        list_backups(backups_root.path())
+            .expect("list backups")
+            .len(),
+        1
+    );
 }
 
 #[test]
@@ -244,7 +249,15 @@ fn dry_run_causes_zero_writes() {
     assert!(read_thread_by_id(&layout.state_db, ACTIVE_THREAD_ID)
         .expect("read sqlite row")
         .is_none());
-    assert_eq!(fs::read_to_string(&rollout_path).expect("read rollout after"), original_rollout);
-    assert_eq!(fs::read_to_string(&layout.config_toml).expect("read config after"), original_config);
-    assert!(list_backups(backups_root.path()).expect("list backups").is_empty());
+    assert_eq!(
+        fs::read_to_string(&rollout_path).expect("read rollout after"),
+        original_rollout
+    );
+    assert_eq!(
+        fs::read_to_string(&layout.config_toml).expect("read config after"),
+        original_config
+    );
+    assert!(list_backups(backups_root.path())
+        .expect("list backups")
+        .is_empty());
 }

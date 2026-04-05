@@ -3,11 +3,10 @@ use std::process;
 
 use clap::{Args, Parser, Subcommand};
 use doctor_core::{
-    build_repair_plan, diagnose, execute_repair_plan, list_backups, prune_backups,
-    restore_backup, scan_codex_home, BackupManifest, BackupSnapshot, DiagnosisProblem,
-    DiagnosisReport, ProblemCode, ProblemSeverity, RepairAction, RepairExecutionEntry,
-    RepairExecutionReport, RepairPlan, RolloutRecord, ScanReport, SqliteThreadRecord,
-    ThreadLocation,
+    build_repair_plan, diagnose, execute_repair_plan, list_backups, prune_backups, restore_backup,
+    scan_codex_home, BackupManifest, BackupSnapshot, DiagnosisProblem, DiagnosisReport,
+    ProblemCode, ProblemSeverity, RepairAction, RepairExecutionEntry, RepairExecutionReport,
+    RepairPlan, RolloutRecord, ScanReport, SqliteThreadRecord, ThreadLocation,
 };
 use serde_json::{json, Value};
 
@@ -127,12 +126,8 @@ fn run() -> Result<(), String> {
             let report = scan_codex_home(&args.codex_home)?;
             let diagnosis = diagnose(&report);
             let plan = build_repair_plan(&report, &diagnosis);
-            let execution_report = execute_repair_plan(
-                &args.codex_home,
-                &args.backups_root,
-                &plan,
-                args.dry_run,
-            )?;
+            let execution_report =
+                execute_repair_plan(&args.codex_home, &args.backups_root, &plan, args.dry_run)?;
             if args.json {
                 print_json(&repair_execution_report_to_json(&execution_report, &plan))?;
             } else {
@@ -315,7 +310,10 @@ fn repair_action_to_json(action: &RepairAction) -> Value {
             "type": "move_rollout_to_sessions",
             "thread_id": thread_id,
         }),
-        RepairAction::RewriteRolloutSessionMeta { thread_id, provider } => json!({
+        RepairAction::RewriteRolloutSessionMeta {
+            thread_id,
+            provider,
+        } => json!({
             "type": "rewrite_rollout_session_meta",
             "thread_id": thread_id,
             "provider": provider,

@@ -52,7 +52,14 @@ fn create_threads_table(connection: &Connection) {
         .expect("create threads table");
 }
 
-fn insert_thread(connection: &Connection, id: &str, rollout_path: &str, provider: &str, cwd: &str, archived_at: Option<i64>) {
+fn insert_thread(
+    connection: &Connection,
+    id: &str,
+    rollout_path: &str,
+    provider: &str,
+    cwd: &str,
+    archived_at: Option<i64>,
+) {
     connection
         .execute(
             "

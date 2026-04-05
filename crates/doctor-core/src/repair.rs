@@ -83,7 +83,10 @@ fn apply_action(layout: &CodexLayout, action: &RepairAction) -> Result<String, S
             upsert_thread_record(&layout.state_db, &sqlite_record)?;
             Ok(format!("upserted sqlite thread {}", rollout.thread_id))
         }
-        RepairAction::RewriteRolloutSessionMeta { thread_id, provider } => {
+        RepairAction::RewriteRolloutSessionMeta {
+            thread_id,
+            provider,
+        } => {
             let rollout = find_rollout_record(layout, thread_id)?
                 .ok_or_else(|| format!("rollout record not found for thread {thread_id}"))?;
             rewrite_rollout_provider(&rollout.rollout_path, provider)?;
@@ -129,8 +132,8 @@ fn move_rollout(
         .ok_or_else(|| format!("rollout record not found for thread {thread_id}"))?;
     let new_path = move_rollout_file(&rollout.rollout_path, destination_dir)?;
 
-    if let Some(mut sqlite_record) = read_thread_by_id(&layout.state_db, thread_id)
-        .map_err(|err| err.to_string())?
+    if let Some(mut sqlite_record) =
+        read_thread_by_id(&layout.state_db, thread_id).map_err(|err| err.to_string())?
     {
         sqlite_record.rollout_path = new_path;
         sqlite_record.archived_at = if archived {
@@ -144,9 +147,18 @@ fn move_rollout(
     Ok(format!("moved rollout for {thread_id}"))
 }
 
-fn find_rollout_record(layout: &CodexLayout, thread_id: &str) -> Result<Option<RolloutRecord>, String> {
+fn find_rollout_record(
+    layout: &CodexLayout,
+    thread_id: &str,
+) -> Result<Option<RolloutRecord>, String> {
     find_rollout_in_dir(&layout.sessions_dir, ThreadLocation::Active, thread_id)?.map_or_else(
-        || find_rollout_in_dir(&layout.archived_sessions_dir, ThreadLocation::Archived, thread_id),
+        || {
+            find_rollout_in_dir(
+                &layout.archived_sessions_dir,
+                ThreadLocation::Archived,
+                thread_id,
+            )
+        },
         |record| Ok(Some(record)),
     )
 }

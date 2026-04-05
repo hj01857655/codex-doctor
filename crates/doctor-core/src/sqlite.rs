@@ -22,7 +22,11 @@ impl std::fmt::Display for SqliteReaderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Open { path, message } => {
-                write!(f, "failed to open sqlite database {}: {message}", path.display())
+                write!(
+                    f,
+                    "failed to open sqlite database {}: {message}",
+                    path.display()
+                )
             }
             Self::Query { message } => write!(f, "failed to query sqlite database: {message}"),
         }
@@ -46,7 +50,7 @@ pub fn read_threads(path: &Path) -> Result<Vec<SqliteThreadRecord>, SqliteReader
         })?;
 
     let rows = statement
-        .query_map([], |row| Ok(map_row(row)?))
+        .query_map([], map_row)
         .map_err(|err| SqliteReaderError::Query {
             message: err.to_string(),
         })?;
@@ -82,11 +86,12 @@ pub fn read_thread_by_id(
 
     let Some(row) = rows.next().map_err(|err| SqliteReaderError::Query {
         message: err.to_string(),
-    })? else {
+    })?
+    else {
         return Ok(None);
     };
 
-    map_row(&row)
+    map_row(row)
         .map(Some)
         .map_err(|err| SqliteReaderError::Query {
             message: err.to_string(),

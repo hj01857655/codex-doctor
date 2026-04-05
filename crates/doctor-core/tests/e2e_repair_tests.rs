@@ -171,7 +171,10 @@ fn repairs_stale_sqlite_rollout_path_with_file_fallback() {
     let repaired = read_thread_by_id(&layout.state_db, ACTIVE_THREAD_ID)
         .expect("read sqlite row")
         .expect("sqlite row exists");
-    assert_eq!(repaired.rollout_path, layout.sessions_dir.join(ACTIVE_ROLLOUT_FILENAME));
+    assert_eq!(
+        repaired.rollout_path,
+        layout.sessions_dir.join(ACTIVE_ROLLOUT_FILENAME)
+    );
 }
 
 #[test]

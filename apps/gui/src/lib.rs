@@ -144,13 +144,15 @@ impl eframe::App for CodexDoctorApp {
             ui.separator();
             ui.heading("Summary");
             if let Some(dashboard) = &self.dashboard {
-                egui::Grid::new("summary-grid").striped(true).show(ui, |ui| {
-                    for item in &dashboard.summary_items {
-                        ui.label(&item.label);
-                        ui.label(&item.value);
-                        ui.end_row();
-                    }
-                });
+                egui::Grid::new("summary-grid")
+                    .striped(true)
+                    .show(ui, |ui| {
+                        for item in &dashboard.summary_items {
+                            ui.label(&item.label);
+                            ui.label(&item.value);
+                            ui.end_row();
+                        }
+                    });
 
                 ui.separator();
                 ui.heading("Problems");
@@ -248,8 +250,12 @@ fn render_preview_summary(preview_actions: &[String]) -> String {
     }
 }
 
-fn build_summary_items(scan_report: &ScanReport, problem_count: usize) -> Vec<SummaryItemViewModel> {
-    let preview_problem_count = if problem_count == 0 && scan_report.summary.root_provider.is_none() {
+fn build_summary_items(
+    scan_report: &ScanReport,
+    problem_count: usize,
+) -> Vec<SummaryItemViewModel> {
+    let preview_problem_count = if problem_count == 0 && scan_report.summary.root_provider.is_none()
+    {
         1
     } else {
         problem_count

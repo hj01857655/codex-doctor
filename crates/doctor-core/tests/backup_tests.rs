@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 
-use doctor_core::{create_backup_snapshot, list_backups, prune_backups, restore_backup, CodexLayout};
+use doctor_core::{
+    create_backup_snapshot, list_backups, prune_backups, restore_backup, CodexLayout,
+};
 use rusqlite::Connection;
 use tempfile::tempdir;
 

@@ -74,7 +74,8 @@ pub fn build_repair_plan(report: &ScanReport, diagnosis: &DiagnosisReport) -> Re
                 .iter()
                 .find(|thread| thread.id == rollout.thread_id)
             {
-                let sqlite_points_to_missing_rollout = sqlite_row.rollout_path != rollout.rollout_path
+                let sqlite_points_to_missing_rollout = sqlite_row.rollout_path
+                    != rollout.rollout_path
                     && !report
                         .rollout_records
                         .iter()
@@ -136,7 +137,9 @@ pub fn build_repair_plan(report: &ScanReport, diagnosis: &DiagnosisReport) -> Re
                 .iter()
                 .find(|thread| thread.id == rollout.thread_id)
             {
-                if rollout.session_meta.provider.as_deref() != Some(sqlite_row.model_provider.as_str()) {
+                if rollout.session_meta.provider.as_deref()
+                    != Some(sqlite_row.model_provider.as_str())
+                {
                     plan.push_unique(RepairAction::RewriteRolloutSessionMeta {
                         thread_id: rollout.thread_id.clone(),
                         provider: sqlite_row.model_provider.clone(),
@@ -159,7 +162,10 @@ pub fn build_repair_plan(report: &ScanReport, diagnosis: &DiagnosisReport) -> Re
 }
 
 fn has_problem(diagnosis: &DiagnosisReport, code: ProblemCode) -> bool {
-    diagnosis.problems.iter().any(|problem| problem.code == code)
+    diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == code)
 }
 
 fn preferred_root_provider(report: &ScanReport) -> Option<String> {
@@ -176,5 +182,11 @@ fn preferred_root_provider(report: &ScanReport) -> Option<String> {
                 .iter()
                 .find_map(|record| record.session_meta.provider.clone())
         })
-        .or_else(|| report.sqlite_threads.iter().map(|thread| thread.model_provider.clone()).next())
+        .or_else(|| {
+            report
+                .sqlite_threads
+                .iter()
+                .map(|thread| thread.model_provider.clone())
+                .next()
+        })
 }

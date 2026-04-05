@@ -68,7 +68,8 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
             }),
             Some(sqlite_row) => {
                 if sqlite_row.rollout_path != rollout.rollout_path {
-                    let stale_path = !rollout_by_path.contains_key(sqlite_row.rollout_path.as_path());
+                    let stale_path =
+                        !rollout_by_path.contains_key(sqlite_row.rollout_path.as_path());
                     if stale_path {
                         problems.push(DiagnosisProblem {
                             code: ProblemCode::StaleSqliteRolloutPath,
@@ -78,12 +79,16 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
                                 sqlite_row.id,
                                 sqlite_row.rollout_path.display()
                             )],
-                            suggested_fix_ids: vec!["rebuild_missing_index_from_rollout".to_string()],
+                            suggested_fix_ids: vec![
+                                "rebuild_missing_index_from_rollout".to_string()
+                            ],
                         });
                     }
                 }
 
-                if rollout.session_meta.provider.as_deref() != Some(sqlite_row.model_provider.as_str()) {
+                if rollout.session_meta.provider.as_deref()
+                    != Some(sqlite_row.model_provider.as_str())
+                {
                     problems.push(DiagnosisProblem {
                         code: ProblemCode::RolloutProviderMismatch,
                         severity: ProblemSeverity::Warning,
@@ -101,7 +106,8 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
                 }
 
                 let sqlite_archived = sqlite_row.archived_at.is_some();
-                let rollout_archived = matches!(rollout.location, ThreadLocation::Archived) || rollout.archived;
+                let rollout_archived =
+                    matches!(rollout.location, ThreadLocation::Archived) || rollout.archived;
                 if sqlite_archived != rollout_archived {
                     problems.push(DiagnosisProblem {
                         code: ProblemCode::ArchivedStateMismatch,
