@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use gui::load_dashboard_view_model;
+use gui::{load_dashboard_view_model, CodexDoctorApp};
 use rusqlite::{params, Connection};
 use tempfile::tempdir;
 
@@ -146,4 +146,60 @@ fn gui_layer_builds_summary_view_model_from_core_scan() {
         .preview_actions
         .iter()
         .any(|action| action == "patch_config_model_provider"));
+}
+
+#[test]
+fn refresh_updates_dashboard_state_from_codex_home_input() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(String::new());
+    app.set_codex_home_input(codex_home.path().display().to_string());
+    app.refresh().expect("refresh dashboard");
+
+    let dashboard = app.dashboard.as_ref().expect("dashboard state");
+    assert_eq!(dashboard.codex_home, codex_home.path().display().to_string());
+    assert!(dashboard
+        .summary_items
+        .iter()
+        .any(|item| item.label == "Problems" && item.value == "1"));
+    assert!(app.preview_summary.is_empty());
+}
+
+#[test]
+fn preview_action_updates_preview_summary_after_refresh() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.refresh().expect("refresh dashboard");
+    app.preview_repair().expect("preview repair");
+
+    assert!(app.preview_actions().iter().any(|action| action == "patch_config_model_provider"));
+    assert!(app.preview_summary.contains("patch_config_model_provider"));
+    assert_eq!(app.status_message, "Previewed: 1");
+    assert_eq!(app.preview_repair_label(), "Preview repair");
+}
+
+#[test]
+fn execute_action_runs_repair_and_updates_status() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.refresh().expect("refresh dashboard");
+    app.execute_repair().expect("execute repair");
+
+    let config = fs::read_to_string(codex_home.path().join("config.toml")).expect("read config");
+    assert!(config.contains("model_provider = \"openai\""));
+    assert!(app.status_message.contains("Applied: 1"));
+    assert!(codex_home.path().join(".codex-doctor-backups").exists());
+    assert!(app
+        .dashboard
+        .as_ref()
+        .expect("dashboard after execute")
+        .problems
+        .iter()
+        .all(|problem| problem.code != "missing_root_model_provider"));
+    assert_eq!(app.execute_repair_label(), "Execute repair");
 }
