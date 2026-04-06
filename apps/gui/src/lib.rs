@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use doctor_core::{
     build_repair_plan, diagnose, execute_repair_plan, list_backups, list_repair_history,
@@ -61,6 +62,7 @@ pub struct CodexDoctorApp {
     pub preview_summary: String,
     pub status_message: String,
     pub last_operation_title: Option<String>,
+    pub last_operation_at: Option<i64>,
     pub last_execution: Vec<RepairActionRecord>,
     pub backup_keep_latest_input: String,
     pub active_tab: Option<ActiveTab>,
@@ -136,6 +138,7 @@ impl CodexDoctorApp {
 
         self.status_message = execution_status(&execution);
         self.last_operation_title = Some("Last repair".to_string());
+        self.last_operation_at = Some(current_unix_timestamp_sec());
         self.last_execution = collect_execution_actions(&execution);
         self.last_error = None;
         self.refresh()?;
@@ -183,6 +186,7 @@ impl CodexDoctorApp {
                 restore_backup(&snapshot_dir, &codex_home)?;
                 self.status_message = format!("Restored backup: {}", manifest.backup_id);
                 self.last_operation_title = Some("Last restore".to_string());
+                self.last_operation_at = Some(current_unix_timestamp_sec());
                 self.last_execution.clear();
                 self.refresh()?;
                 self.load_backups()?;
@@ -199,6 +203,7 @@ impl CodexDoctorApp {
         let report = prune_backups(&backups_root, keep_latest)?;
         self.load_backups()?;
         self.last_operation_title = Some("Last prune".to_string());
+        self.last_operation_at = Some(current_unix_timestamp_sec());
         self.last_execution.clear();
         self.status_message = format!("Pruned {} backup(s)", report.removed_backup_ids.len());
         self.last_error = None;
@@ -374,15 +379,22 @@ impl CodexDoctorApp {
                     }
                 });
 
-                if !self.last_execution.is_empty() {
+                if self.last_operation_title.is_some() {
                     ui.separator();
                     ui.heading(
                         self.last_operation_title
                             .as_deref()
                             .unwrap_or("Last execution"),
                     );
-                    for action in &self.last_execution {
-                        render_action_record(ui, action);
+                    if let Some(timestamp) = self.last_operation_at {
+                        ui.label(format!("At: {}", format_timestamp_sec(timestamp)));
+                    }
+                    if self.last_execution.is_empty() {
+                        ui.label("No action-level details recorded for this operation.");
+                    } else {
+                        for action in &self.last_execution {
+                            render_action_record(ui, action);
+                        }
                     }
                 }
             } else {
@@ -609,6 +621,13 @@ fn collect_execution_actions(report: &RepairExecutionReport) -> Vec<RepairAction
     }
 
     actions
+}
+
+fn current_unix_timestamp_sec() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time before unix epoch")
+        .as_secs() as i64
 }
 
 fn build_summary_items(

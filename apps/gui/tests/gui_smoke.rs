@@ -235,6 +235,7 @@ fn execute_action_runs_repair_and_updates_status() {
     assert!(!app.backups.is_empty());
     assert!(!app.history.is_empty());
     assert_eq!(app.last_operation_title.as_deref(), Some("Last repair"));
+    assert!(app.last_operation_at.is_some());
     assert!(!app.last_execution.is_empty());
     assert!(app
         .last_execution
@@ -250,10 +251,12 @@ fn refresh_keeps_last_execution_details() {
     let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
     app.execute_repair().expect("execute repair");
     let before = app.last_execution.clone();
+    let before_timestamp = app.last_operation_at;
 
     app.refresh().expect("refresh dashboard");
 
     assert_eq!(app.last_execution, before);
+    assert_eq!(app.last_operation_at, before_timestamp);
 }
 
 #[test]
@@ -362,6 +365,7 @@ fn restore_selected_backup_restores_previous_config_state() {
     assert!(!app.backups.is_empty());
     assert!(!app.history.is_empty());
     assert_eq!(app.last_operation_title.as_deref(), Some("Last restore"));
+    assert!(app.last_operation_at.is_some());
     assert!(app.last_execution.is_empty());
 }
 
@@ -429,6 +433,7 @@ fn prune_backups_updates_backup_list_and_status() {
     assert_eq!(app.selected_backup, None);
     assert!(app.status_message.contains("Pruned 1 backup(s)"));
     assert_eq!(app.last_operation_title.as_deref(), Some("Last prune"));
+    assert!(app.last_operation_at.is_some());
     assert!(app.last_execution.is_empty());
 }
 
@@ -447,6 +452,7 @@ fn prune_backups_handles_missing_directory_gracefully() {
     assert_eq!(app.selected_backup, None);
     assert!(app.status_message.contains("Pruned 0 backup(s)"));
     assert_eq!(app.last_operation_title.as_deref(), Some("Last prune"));
+    assert!(app.last_operation_at.is_some());
 }
 
 #[test]
