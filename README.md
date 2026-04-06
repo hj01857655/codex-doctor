@@ -35,12 +35,12 @@ A cross-platform CLI and GUI tool for diagnosing and repairing local Codex state
 
 For normal users, the recommended path is to download a prebuilt release from GitHub Releases instead of building from source.
 
-Planned release assets:
+The repository ships a tag-driven release workflow at `.github/workflows/release.yml`. Pushing a tag that matches `v*` builds and uploads these release assets:
 - `codex-doctor-windows-x86_64.zip`
 - `codex-doctor-linux-x86_64.tar.gz`
 - `codex-doctor-macos-x86_64.tar.gz`
 
-Each archive is intended to contain:
+Each archive contains:
 - `codex-doctor` / `codex-doctor.exe`
 - `gui` / `gui.exe`
 - `README.md`
