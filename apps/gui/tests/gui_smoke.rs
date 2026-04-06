@@ -231,6 +231,8 @@ fn execute_action_runs_repair_and_updates_status() {
         .iter()
         .all(|problem| problem.code != "missing_root_model_provider"));
     assert_eq!(app.execute_repair_label(), "Execute repair");
+    assert!(!app.backups.is_empty());
+    assert!(!app.history.is_empty());
 }
 
 #[test]
@@ -289,6 +291,8 @@ fn restore_selected_backup_restores_previous_config_state() {
         .problems
         .iter()
         .any(|problem| problem.code == "missing_root_model_provider"));
+    assert!(!app.backups.is_empty());
+    assert!(!app.history.is_empty());
 }
 
 #[test]

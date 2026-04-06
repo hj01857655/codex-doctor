@@ -135,6 +135,8 @@ impl CodexDoctorApp {
         self.status_message = execution_status(&execution);
         self.last_error = None;
         self.refresh()?;
+        self.load_backups()?;
+        self.load_history()?;
         Ok(())
     }
 
@@ -163,6 +165,8 @@ impl CodexDoctorApp {
                 restore_backup(&snapshot_dir, &codex_home)?;
                 self.status_message = format!("Restored backup: {}", manifest.backup_id);
                 self.refresh()?;
+                self.load_backups()?;
+                self.load_history()?;
                 return Ok(());
             }
         }
