@@ -238,6 +238,36 @@ impl CodexDoctorApp {
             .unwrap_or(&[])
     }
 
+    pub fn error_clipboard_text(&self) -> Option<String> {
+        self.last_error.clone()
+    }
+
+    pub fn dashboard_clipboard_text(&self) -> Option<String> {
+        let dashboard = self.dashboard.as_ref()?;
+        let mut text = render_dashboard_text(dashboard);
+
+        if let Some(title) = &self.last_operation_title {
+            text.push_str("\nLast operation:\n");
+            text.push_str(title);
+            if let Some(timestamp) = self.last_operation_at {
+                text.push_str("\nAt: ");
+                text.push_str(&format_timestamp_sec(timestamp));
+            }
+            if self.last_execution.is_empty() {
+                text.push_str("\nNo action-level details recorded for this operation.");
+            } else {
+                for action in &self.last_execution {
+                    text.push_str("\n- ");
+                    text.push_str(&action.action_type);
+                    text.push_str(": ");
+                    text.push_str(&action.details);
+                }
+            }
+        }
+
+        Some(text)
+    }
+
     pub fn execute_repair_label(&self) -> &'static str {
         "Execute repair"
     }
@@ -276,6 +306,9 @@ impl eframe::App for CodexDoctorApp {
                     StatusBannerKind::Error => {
                         if let Some(error) = &self.last_error {
                             ui.colored_label(egui::Color32::RED, format!("❌ {}", error));
+                            if ui.button("📋 Copy error").clicked() {
+                                ctx.copy_text(error.clone());
+                            }
                         }
                     }
                 }
@@ -333,7 +366,7 @@ impl eframe::App for CodexDoctorApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             match self.active_tab.as_ref().unwrap_or(&ActiveTab::Dashboard) {
-                ActiveTab::Dashboard => self.render_dashboard_tab(ui),
+                ActiveTab::Dashboard => self.render_dashboard_tab(ui, ctx),
                 ActiveTab::Backups => self.render_backups_tab(ui),
                 ActiveTab::History => self.render_history_tab(ui),
             }
@@ -342,7 +375,7 @@ impl eframe::App for CodexDoctorApp {
 }
 
 impl CodexDoctorApp {
-    fn render_dashboard_tab(&mut self, ui: &mut egui::Ui) {
+    fn render_dashboard_tab(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.heading("Summary");
 
@@ -386,6 +419,12 @@ impl CodexDoctorApp {
 
                 if !self.preview_summary.is_empty() {
                     ui.label(&self.preview_summary);
+                }
+
+                if ui.button("📋 Copy summary").clicked() {
+                    if let Some(text) = self.dashboard_clipboard_text() {
+                        ctx.copy_text(text);
+                    }
                 }
 
                 let has_actions = !dashboard.preview_actions.is_empty();

@@ -2,7 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use doctor_core::{create_backup_snapshot, save_repair_history, RepairExecutionReport};
-use gui::{load_dashboard_view_model, status_banner_kind, CodexDoctorApp, StatusBannerKind};
+use gui::{
+    load_dashboard_view_model, status_banner_kind, CodexDoctorApp, StatusBannerKind,
+};
 use rusqlite::{params, Connection};
 use tempfile::tempdir;
 
@@ -421,15 +423,35 @@ fn restore_selected_backup_without_selection_reports_error() {
         .expect_err("restore should fail without selection");
 
     assert!(error.contains("No backup selected"));
+    app.last_error = Some(error.clone());
     assert_eq!(
         status_banner_kind("", Some(&error)),
         StatusBannerKind::Error
     );
+    assert_eq!(app.error_clipboard_text().as_deref(), Some(error.as_str()));
 }
 
 #[test]
 fn status_banner_kind_hides_empty_status_without_error() {
     assert_eq!(status_banner_kind("", None), StatusBannerKind::Hidden);
+}
+
+#[test]
+fn dashboard_clipboard_text_includes_summary_problems_and_last_operation() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+
+    let copied = app
+        .dashboard_clipboard_text()
+        .expect("dashboard clipboard text");
+
+    assert!(copied.contains("Codex home:"));
+    assert!(copied.contains("Problems:"));
+    assert!(copied.contains("Preview actions:"));
+    assert!(copied.contains("Last repair"));
 }
 
 #[test]
