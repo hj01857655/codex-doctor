@@ -453,6 +453,37 @@ fn dashboard_clipboard_text_includes_summary_problems_and_last_operation() {
 }
 
 #[test]
+fn export_dashboard_report_writes_text_file() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+
+    let exported = app.export_dashboard_report().expect("export dashboard report");
+    let content = fs::read_to_string(&exported).expect("read exported report");
+
+    assert!(exported.exists());
+    assert!(exported.ends_with("dashboard-report.txt"));
+    assert!(content.contains("Codex home:"));
+    assert!(content.contains("Last operation:"));
+    assert!(app.status_message.contains("Exported report:"));
+}
+
+#[test]
+fn export_dashboard_report_requires_loaded_dashboard() {
+    let codex_home = prepare_codex_home();
+    let mut app = CodexDoctorApp::new(String::new());
+    app.set_codex_home_input(codex_home.path().display().to_string());
+
+    let error = app
+        .export_dashboard_report()
+        .expect_err("export should fail without dashboard");
+
+    assert!(error.contains("No dashboard loaded"));
+}
+
+#[test]
 fn last_operation_clipboard_text_includes_repair_details() {
     let codex_home = prepare_codex_home();
     fs::write(codex_home.path().join("config.toml"), "").expect("clear config");

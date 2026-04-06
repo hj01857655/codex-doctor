@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -277,6 +278,21 @@ impl CodexDoctorApp {
         Some(text)
     }
 
+    pub fn export_dashboard_report(&mut self) -> Result<PathBuf, String> {
+        let codex_home = self.codex_home_path()?;
+        let text = self
+            .dashboard_clipboard_text()
+            .ok_or_else(|| "No dashboard loaded".to_string())?;
+
+        let exports_dir = codex_home.join(".codex-doctor").join("exports");
+        fs::create_dir_all(&exports_dir).map_err(|err| err.to_string())?;
+        let output_path = exports_dir.join("dashboard-report.txt");
+        fs::write(&output_path, text).map_err(|err| err.to_string())?;
+        self.status_message = format!("Exported report: {}", output_path.display());
+        self.last_error = None;
+        Ok(output_path)
+    }
+
     pub fn execute_repair_label(&self) -> &'static str {
         "Execute repair"
     }
@@ -388,7 +404,7 @@ impl CodexDoctorApp {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.heading("Summary");
 
-            if let Some(dashboard) = &self.dashboard {
+            if let Some(dashboard) = self.dashboard.clone() {
                 egui::Grid::new("summary-grid")
                     .striped(true)
                     .show(ui, |ui| {
@@ -433,6 +449,11 @@ impl CodexDoctorApp {
                 if ui.button("📋 Copy summary").clicked() {
                     if let Some(text) = self.dashboard_clipboard_text() {
                         ctx.copy_text(text);
+                    }
+                }
+                if ui.button("💾 Export report").clicked() {
+                    if let Err(error) = self.export_dashboard_report() {
+                        self.last_error = Some(error);
                     }
                 }
 
