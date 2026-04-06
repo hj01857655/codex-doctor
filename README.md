@@ -2,6 +2,14 @@
 
 A cross-platform CLI and GUI tool for diagnosing and repairing local Codex state issues.
 
+## Current Status
+
+- **What is covered today**:
+  - CLI: `scan`, `diagnose`, `repair` (dry-run/main plus `--save-history`), `history`, `backup list/restore/prune` in both JSON and human-readable modes.
+  - GUI: Dashboard scan/preview/execute flows, Backups tab (list + restore), History tab (list + detail), and guards for empty/no-selection states.
+  - Core: repair history persistence, backup manifest snapshots, and extended test coverage across repair/diagnosis/backup/history pipelines.
+- **Verification**: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test` all pass on current tree.
+
 ## What is codex-doctor?
 
 `codex-doctor` helps you fix common problems with your local `.codex` directory:
