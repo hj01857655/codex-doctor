@@ -8,6 +8,14 @@ use doctor_core::{
 };
 use eframe::egui;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusBannerKind {
+    Hidden,
+    Info,
+    Success,
+    Error,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SummaryItemViewModel {
     pub label: String,
@@ -247,11 +255,25 @@ impl eframe::App for CodexDoctorApp {
 
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                if !self.status_message.is_empty() {
-                    ui.label(&self.status_message);
-                }
-                if let Some(error) = &self.last_error {
-                    ui.colored_label(egui::Color32::RED, error);
+                match status_banner_kind(&self.status_message, self.last_error.as_deref()) {
+                    StatusBannerKind::Hidden => {}
+                    StatusBannerKind::Info => {
+                        ui.colored_label(
+                            egui::Color32::LIGHT_BLUE,
+                            format!("ℹ️ {}", self.status_message),
+                        );
+                    }
+                    StatusBannerKind::Success => {
+                        ui.colored_label(
+                            egui::Color32::GREEN,
+                            format!("✅ {}", self.status_message),
+                        );
+                    }
+                    StatusBannerKind::Error => {
+                        if let Some(error) = &self.last_error {
+                            ui.colored_label(egui::Color32::RED, format!("❌ {}", error));
+                        }
+                    }
                 }
             });
         });
@@ -628,6 +650,22 @@ fn current_unix_timestamp_sec() -> i64 {
         .duration_since(UNIX_EPOCH)
         .expect("system time before unix epoch")
         .as_secs() as i64
+}
+
+pub fn status_banner_kind(status_message: &str, last_error: Option<&str>) -> StatusBannerKind {
+    if last_error.is_some() {
+        return StatusBannerKind::Error;
+    }
+    if status_message.is_empty() {
+        return StatusBannerKind::Hidden;
+    }
+    if status_message.starts_with("Applied:")
+        || status_message.starts_with("Restored")
+        || status_message.starts_with("Pruned")
+    {
+        return StatusBannerKind::Success;
+    }
+    StatusBannerKind::Info
 }
 
 fn build_summary_items(

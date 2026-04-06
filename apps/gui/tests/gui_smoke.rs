@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use doctor_core::{create_backup_snapshot, save_repair_history, RepairExecutionReport};
-use gui::{load_dashboard_view_model, CodexDoctorApp};
+use gui::{load_dashboard_view_model, status_banner_kind, CodexDoctorApp, StatusBannerKind};
 use rusqlite::{params, Connection};
 use tempfile::tempdir;
 
@@ -209,6 +209,10 @@ fn preview_action_updates_preview_summary_after_refresh() {
     assert!(app.preview_summary.contains("patch_config_model_provider"));
     assert_eq!(app.status_message, "Previewed: 1");
     assert_eq!(app.preview_repair_label(), "Preview repair");
+    assert_eq!(
+        status_banner_kind(&app.status_message, app.last_error.as_deref()),
+        StatusBannerKind::Info
+    );
 }
 
 #[test]
@@ -241,6 +245,10 @@ fn execute_action_runs_repair_and_updates_status() {
         .last_execution
         .iter()
         .any(|action| matches!(action.status, doctor_core::ActionStatus::Applied)));
+    assert_eq!(
+        status_banner_kind(&app.status_message, app.last_error.as_deref()),
+        StatusBannerKind::Success
+    );
 }
 
 #[test]
@@ -411,6 +419,12 @@ fn restore_selected_backup_without_selection_reports_error() {
         .expect_err("restore should fail without selection");
 
     assert!(error.contains("No backup selected"));
+    assert_eq!(status_banner_kind("", Some(&error)), StatusBannerKind::Error);
+}
+
+#[test]
+fn status_banner_kind_hides_empty_status_without_error() {
+    assert_eq!(status_banner_kind("", None), StatusBannerKind::Hidden);
 }
 
 #[test]
