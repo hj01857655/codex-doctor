@@ -76,6 +76,8 @@ pub struct CodexDoctorApp {
     pub active_tab: Option<ActiveTab>,
     pub backups: Vec<BackupManifest>,
     pub history: Vec<RepairHistoryEntry>,
+    pub last_backups_refresh_at: Option<i64>,
+    pub last_history_refresh_at: Option<i64>,
     pub selected_backup: Option<usize>,
     pub selected_history: Option<usize>,
 }
@@ -165,6 +167,7 @@ impl CodexDoctorApp {
 
     pub fn refresh_backups(&mut self) -> Result<(), String> {
         self.load_backups()?;
+        self.last_backups_refresh_at = Some(current_unix_timestamp_sec());
         self.status_message = format!("Loaded {} backup(s)", self.backups.len());
         self.last_error = None;
         Ok(())
@@ -180,6 +183,7 @@ impl CodexDoctorApp {
 
     pub fn refresh_history(&mut self) -> Result<(), String> {
         self.load_history()?;
+        self.last_history_refresh_at = Some(current_unix_timestamp_sec());
         self.status_message = format!("Loaded {} repair record(s)", self.history.len());
         self.last_error = None;
         Ok(())
@@ -435,6 +439,12 @@ impl CodexDoctorApp {
                     }
                 }
             });
+            if let Some(timestamp) = self.last_backups_refresh_at {
+                ui.label(format!(
+                    "Last refreshed: {}",
+                    format_timestamp_sec(timestamp)
+                ));
+            }
 
             ui.horizontal(|ui| {
                 ui.label("Keep latest:");
@@ -502,6 +512,12 @@ impl CodexDoctorApp {
                     }
                 }
             });
+            if let Some(timestamp) = self.last_history_refresh_at {
+                ui.label(format!(
+                    "Last refreshed: {}",
+                    format_timestamp_sec(timestamp)
+                ));
+            }
 
             if self.history.is_empty() {
                 ui.label("No repair history found.");

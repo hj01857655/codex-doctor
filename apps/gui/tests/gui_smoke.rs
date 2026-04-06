@@ -298,6 +298,7 @@ fn refresh_backups_reloads_backup_list() {
     assert_eq!(app.backups.len(), before + 1);
     assert_eq!(app.selected_backup, None);
     assert!(app.status_message.contains("Loaded"));
+    assert!(app.last_backups_refresh_at.is_some());
 }
 
 #[test]
@@ -339,6 +340,7 @@ fn refresh_history_reloads_history_list() {
     assert_eq!(app.history.len(), before + 1);
     assert_eq!(app.selected_history, None);
     assert!(app.status_message.contains("Loaded"));
+    assert!(app.last_history_refresh_at.is_some());
 }
 
 #[test]
@@ -419,7 +421,10 @@ fn restore_selected_backup_without_selection_reports_error() {
         .expect_err("restore should fail without selection");
 
     assert!(error.contains("No backup selected"));
-    assert_eq!(status_banner_kind("", Some(&error)), StatusBannerKind::Error);
+    assert_eq!(
+        status_banner_kind("", Some(&error)),
+        StatusBannerKind::Error
+    );
 }
 
 #[test]
