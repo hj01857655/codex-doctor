@@ -60,6 +60,7 @@ pub struct CodexDoctorApp {
     pub last_error: Option<String>,
     pub preview_summary: String,
     pub status_message: String,
+    pub last_operation_title: Option<String>,
     pub last_execution: Vec<RepairActionRecord>,
     pub backup_keep_latest_input: String,
     pub active_tab: Option<ActiveTab>,
@@ -134,6 +135,7 @@ impl CodexDoctorApp {
         save_repair_history(&history_dir, &codex_home, &execution, &plan.actions)?;
 
         self.status_message = execution_status(&execution);
+        self.last_operation_title = Some("Last repair".to_string());
         self.last_execution = collect_execution_actions(&execution);
         self.last_error = None;
         self.refresh()?;
@@ -166,6 +168,8 @@ impl CodexDoctorApp {
                 let snapshot_dir = backups_root.join(&manifest.backup_id);
                 restore_backup(&snapshot_dir, &codex_home)?;
                 self.status_message = format!("Restored backup: {}", manifest.backup_id);
+                self.last_operation_title = Some("Last restore".to_string());
+                self.last_execution.clear();
                 self.refresh()?;
                 self.load_backups()?;
                 self.load_history()?;
@@ -180,6 +184,8 @@ impl CodexDoctorApp {
         let backups_root = codex_home.join(".codex-doctor-backups");
         let report = prune_backups(&backups_root, keep_latest)?;
         self.load_backups()?;
+        self.last_operation_title = Some("Last prune".to_string());
+        self.last_execution.clear();
         self.status_message = format!("Pruned {} backup(s)", report.removed_backup_ids.len());
         self.last_error = None;
         Ok(())
@@ -356,7 +362,11 @@ impl CodexDoctorApp {
 
                 if !self.last_execution.is_empty() {
                     ui.separator();
-                    ui.heading("Last execution");
+                    ui.heading(
+                        self.last_operation_title
+                            .as_deref()
+                            .unwrap_or("Last execution"),
+                    );
                     for action in &self.last_execution {
                         render_action_record(ui, action);
                     }

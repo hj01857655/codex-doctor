@@ -233,6 +233,7 @@ fn execute_action_runs_repair_and_updates_status() {
     assert_eq!(app.execute_repair_label(), "Execute repair");
     assert!(!app.backups.is_empty());
     assert!(!app.history.is_empty());
+    assert_eq!(app.last_operation_title.as_deref(), Some("Last repair"));
     assert!(!app.last_execution.is_empty());
     assert!(app
         .last_execution
@@ -312,6 +313,8 @@ fn restore_selected_backup_restores_previous_config_state() {
         .any(|problem| problem.code == "missing_root_model_provider"));
     assert!(!app.backups.is_empty());
     assert!(!app.history.is_empty());
+    assert_eq!(app.last_operation_title.as_deref(), Some("Last restore"));
+    assert!(app.last_execution.is_empty());
 }
 
 #[test]
@@ -377,6 +380,8 @@ fn prune_backups_updates_backup_list_and_status() {
     assert_eq!(app.backups.len(), 1);
     assert_eq!(app.selected_backup, None);
     assert!(app.status_message.contains("Pruned 1 backup(s)"));
+    assert_eq!(app.last_operation_title.as_deref(), Some("Last prune"));
+    assert!(app.last_execution.is_empty());
 }
 
 #[test]
@@ -393,6 +398,7 @@ fn prune_backups_handles_missing_directory_gracefully() {
     assert!(app.backups.is_empty());
     assert_eq!(app.selected_backup, None);
     assert!(app.status_message.contains("Pruned 0 backup(s)"));
+    assert_eq!(app.last_operation_title.as_deref(), Some("Last prune"));
 }
 
 #[test]
