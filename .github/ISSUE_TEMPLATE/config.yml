@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Project README
+    url: https://github.com/hj01857655/codex-doctor#readme
+    about: Review current status, supported workflows, and local verification commands before opening an issue.
