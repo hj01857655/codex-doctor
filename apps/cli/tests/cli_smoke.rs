@@ -46,6 +46,17 @@ fn prepare_codex_home() -> tempfile::TempDir {
     temp
 }
 
+fn prepare_codex_home_with_separate_sqlite_home() -> (tempfile::TempDir, tempfile::TempDir) {
+    let codex_home = prepare_codex_home();
+    let sqlite_home = tempdir().expect("create sqlite home");
+    fs::rename(
+        codex_home.path().join("state_5.sqlite"),
+        sqlite_home.path().join("state_5.sqlite"),
+    )
+    .expect("move sqlite database");
+    (codex_home, sqlite_home)
+}
+
 fn create_threads_table(path: &Path) {
     let connection = Connection::open(path).expect("open sqlite");
     connection
@@ -163,6 +174,30 @@ fn scan_json_outputs_summary() {
 }
 
 #[test]
+fn scan_json_respects_sqlite_home_override() {
+    let (codex_home, sqlite_home) = prepare_codex_home_with_separate_sqlite_home();
+
+    let output = run_cli(&[
+        "scan",
+        "--codex-home",
+        codex_home.path().to_str().expect("codex home path"),
+        "--sqlite-home",
+        sqlite_home.path().to_str().expect("sqlite home path"),
+        "--json",
+    ]);
+
+    assert_eq!(output["summary"]["sqlite_present"], true);
+    assert_eq!(output["summary"]["sqlite_readable"], true);
+    assert_eq!(
+        output["sqlite_threads"]
+            .as_array()
+            .expect("sqlite threads")
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn diagnose_json_outputs_problems() {
     let codex_home = prepare_codex_home();
     fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
@@ -218,6 +253,35 @@ fn repair_dry_run_json_outputs_execution_report() {
         .as_array()
         .expect("skipped array")
         .is_empty());
+}
+
+#[test]
+fn repair_json_respects_sqlite_home_override() {
+    let (codex_home, sqlite_home) = prepare_codex_home_with_separate_sqlite_home();
+    let backups_root = tempdir().expect("create backups root");
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let output = run_cli(&[
+        "repair",
+        "--codex-home",
+        codex_home.path().to_str().expect("codex home path"),
+        "--sqlite-home",
+        sqlite_home.path().to_str().expect("sqlite home path"),
+        "--backups-root",
+        backups_root.path().to_str().expect("backups root path"),
+        "--json",
+    ]);
+
+    assert_eq!(
+        output["backup"]["manifest"]["source_codex_home"],
+        codex_home.path().display().to_string()
+    );
+    assert!(output["applied"]
+        .as_array()
+        .expect("applied array")
+        .iter()
+        .any(|entry| entry["action"]["type"] == "patch_config_model_provider"));
+    assert!(sqlite_home.path().join("state_5.sqlite").exists());
 }
 
 #[test]

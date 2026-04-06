@@ -1,11 +1,11 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    create_backup_snapshot, move_rollout_file, patch_root_model_provider, read_thread_by_id,
-    rewrite_rollout_provider, upsert_thread_record, BackupSnapshot, CodexLayout, RepairAction,
-    RepairPlan, RolloutRecord, SqliteThreadRecord, ThreadLocation,
+    create_backup_snapshot_with_sqlite_home, move_rollout_file, patch_root_model_provider,
+    read_thread_by_id, rewrite_rollout_provider, upsert_thread_record, BackupSnapshot, CodexLayout,
+    RepairAction, RepairPlan, RolloutRecord, SqliteThreadRecord, ThreadLocation,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,11 +28,26 @@ pub fn execute_repair_plan(
     plan: &RepairPlan,
     dry_run: bool,
 ) -> Result<RepairExecutionReport, String> {
-    let layout = CodexLayout::from_codex_home(codex_home);
+    execute_repair_plan_with_sqlite_home(codex_home, backups_root, plan, dry_run, None)
+}
+
+pub fn execute_repair_plan_with_sqlite_home(
+    codex_home: &Path,
+    backups_root: &Path,
+    plan: &RepairPlan,
+    dry_run: bool,
+    sqlite_home_override: Option<&Path>,
+) -> Result<RepairExecutionReport, String> {
+    let layout =
+        CodexLayout::from_codex_home_and_env(codex_home, sqlite_home_override.map(PathBuf::from));
     let backup = if dry_run || plan.actions.is_empty() {
         None
     } else {
-        Some(create_backup_snapshot(codex_home, backups_root)?)
+        Some(create_backup_snapshot_with_sqlite_home(
+            codex_home,
+            backups_root,
+            sqlite_home_override,
+        )?)
     };
 
     let mut report = RepairExecutionReport {

@@ -31,9 +31,18 @@ pub fn create_backup_snapshot(
     codex_home: &Path,
     backups_root: &Path,
 ) -> Result<BackupSnapshot, String> {
+    create_backup_snapshot_with_sqlite_home(codex_home, backups_root, None)
+}
+
+pub fn create_backup_snapshot_with_sqlite_home(
+    codex_home: &Path,
+    backups_root: &Path,
+    sqlite_home_override: Option<&Path>,
+) -> Result<BackupSnapshot, String> {
     fs::create_dir_all(backups_root).map_err(|err| err.to_string())?;
 
-    let layout = CodexLayout::from_codex_home(codex_home);
+    let layout =
+        CodexLayout::from_codex_home_and_env(codex_home, sqlite_home_override.map(PathBuf::from));
     let created_at_unix_ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|err| err.to_string())?
@@ -102,7 +111,16 @@ pub fn list_backups(backups_root: &Path) -> Result<Vec<BackupManifest>, String> 
 }
 
 pub fn restore_backup(snapshot_dir: &Path, codex_home: &Path) -> Result<(), String> {
-    let target_layout = CodexLayout::from_codex_home(codex_home);
+    restore_backup_with_sqlite_home(snapshot_dir, codex_home, None)
+}
+
+pub fn restore_backup_with_sqlite_home(
+    snapshot_dir: &Path,
+    codex_home: &Path,
+    sqlite_home_override: Option<&Path>,
+) -> Result<(), String> {
+    let target_layout =
+        CodexLayout::from_codex_home_and_env(codex_home, sqlite_home_override.map(PathBuf::from));
 
     restore_file(
         &snapshot_dir.join("config.toml"),

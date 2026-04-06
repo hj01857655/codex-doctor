@@ -52,10 +52,20 @@ With JSON output:
 codex-doctor scan --codex-home ~/.codex --json
 ```
 
+With an explicit SQLite home override:
+```bash
+codex-doctor scan --codex-home ~/.codex --sqlite-home ~/.codex-sqlite --json
+```
+
 ### Diagnose problems
 
 ```bash
 codex-doctor diagnose --codex-home ~/.codex
+```
+
+With an explicit SQLite home override:
+```bash
+codex-doctor diagnose --codex-home ~/.codex --sqlite-home ~/.codex-sqlite --json
 ```
 
 ### Preview repair plan (dry-run)
@@ -71,6 +81,12 @@ codex-doctor repair --codex-home ~/.codex --backups-root ~/.codex-backups
 ```
 
 **Important:** A backup is automatically created before any repair operation.
+
+If your SQLite state lives outside the main `.codex` directory, pass it explicitly:
+
+```bash
+codex-doctor repair --codex-home ~/.codex --sqlite-home ~/.codex-sqlite --backups-root ~/.codex-backups
+```
 
 To also persist a structured repair history entry:
 
@@ -124,6 +140,8 @@ Or launch without arguments and enter the path in the UI:
 ```bash
 gui
 ```
+
+The GUI also supports an explicit `SQLite home` field when the state database is stored outside the main Codex home.
 
 The GUI provides:
 - Visual summary of your Codex state
@@ -202,7 +220,6 @@ cargo clippy --workspace --all-targets -- -D warnings
 ## Known Limitations
 
 - Does not repair corrupted SQLite databases (only metadata mismatches)
-- Does not handle custom `CODEX_SQLITE_HOME` overrides automatically
 - Requires manual intervention for severely corrupted rollout files
 - Cannot repair while Codex is actively using the database
 

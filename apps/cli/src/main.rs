@@ -5,11 +5,12 @@ use std::process;
 
 use clap::{Args, Parser, Subcommand};
 use doctor_core::{
-    build_repair_plan, diagnose, execute_repair_plan, list_backups, list_repair_history,
-    prune_backups, restore_backup, save_repair_history, scan_codex_home, BackupManifest,
-    BackupSnapshot, DiagnosisProblem, DiagnosisReport, ProblemCode, ProblemSeverity, RepairAction,
-    RepairExecutionEntry, RepairExecutionReport, RepairPlan, RolloutRecord, ScanReport,
-    SqliteThreadRecord, ThreadLocation,
+    build_repair_plan, diagnose, execute_repair_plan_with_sqlite_home, list_backups,
+    list_repair_history, prune_backups, restore_backup_with_sqlite_home, save_repair_history,
+    scan_codex_home_with_sqlite_home, BackupManifest, BackupSnapshot, DiagnosisProblem,
+    DiagnosisReport, ProblemCode, ProblemSeverity, RepairAction, RepairExecutionEntry,
+    RepairExecutionReport, RepairPlan, RolloutRecord, ScanReport, SqliteThreadRecord,
+    ThreadLocation,
 };
 use serde_json::{json, Value};
 
@@ -43,6 +44,8 @@ struct ScanArgs {
     #[arg(long)]
     codex_home: PathBuf,
     #[arg(long)]
+    sqlite_home: Option<PathBuf>,
+    #[arg(long)]
     json: bool,
 }
 
@@ -51,6 +54,8 @@ struct DiagnoseArgs {
     #[arg(long)]
     codex_home: PathBuf,
     #[arg(long)]
+    sqlite_home: Option<PathBuf>,
+    #[arg(long)]
     json: bool,
 }
 
@@ -58,6 +63,8 @@ struct DiagnoseArgs {
 struct RepairArgs {
     #[arg(long)]
     codex_home: PathBuf,
+    #[arg(long)]
+    sqlite_home: Option<PathBuf>,
     #[arg(long)]
     backups_root: PathBuf,
     #[arg(long)]
@@ -89,6 +96,8 @@ struct BackupRestoreArgs {
     snapshot_dir: PathBuf,
     #[arg(long)]
     codex_home: PathBuf,
+    #[arg(long)]
+    sqlite_home: Option<PathBuf>,
     #[arg(long)]
     json: bool,
 }
@@ -123,7 +132,8 @@ fn run() -> Result<(), String> {
 
     match cli.command {
         Commands::Scan(args) => {
-            let report = scan_codex_home(&args.codex_home)?;
+            let report =
+                scan_codex_home_with_sqlite_home(&args.codex_home, args.sqlite_home.as_deref())?;
             if args.json {
                 print_json(&scan_report_to_json(&report))?;
             } else {
@@ -131,7 +141,8 @@ fn run() -> Result<(), String> {
             }
         }
         Commands::Diagnose(args) => {
-            let report = scan_codex_home(&args.codex_home)?;
+            let report =
+                scan_codex_home_with_sqlite_home(&args.codex_home, args.sqlite_home.as_deref())?;
             let diagnosis = diagnose(&report);
             if args.json {
                 print_json(&diagnosis_to_json(&diagnosis))?;
@@ -140,11 +151,17 @@ fn run() -> Result<(), String> {
             }
         }
         Commands::Repair(args) => {
-            let report = scan_codex_home(&args.codex_home)?;
+            let report =
+                scan_codex_home_with_sqlite_home(&args.codex_home, args.sqlite_home.as_deref())?;
             let diagnosis = diagnose(&report);
             let plan = build_repair_plan(&report, &diagnosis);
-            let execution_report =
-                execute_repair_plan(&args.codex_home, &args.backups_root, &plan, args.dry_run)?;
+            let execution_report = execute_repair_plan_with_sqlite_home(
+                &args.codex_home,
+                &args.backups_root,
+                &plan,
+                args.dry_run,
+                args.sqlite_home.as_deref(),
+            )?;
 
             if args.save_history && !args.dry_run {
                 let history_dir = args.codex_home.join(".codex-doctor").join("history");
@@ -182,11 +199,16 @@ fn run() -> Result<(), String> {
                 }
             }
             BackupCommands::Restore(args) => {
-                restore_backup(&args.snapshot_dir, &args.codex_home)?;
+                restore_backup_with_sqlite_home(
+                    &args.snapshot_dir,
+                    &args.codex_home,
+                    args.sqlite_home.as_deref(),
+                )?;
                 if args.json {
                     print_json(&json!({
                         "snapshot_dir": args.snapshot_dir,
                         "codex_home": args.codex_home,
+                        "sqlite_home": args.sqlite_home,
                         "restored": true,
                     }))?;
                 } else {

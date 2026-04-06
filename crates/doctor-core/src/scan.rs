@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{
     read_root_config_snapshot, read_threads, CodexLayout, RolloutRecord, RootConfigSnapshot,
@@ -33,7 +33,15 @@ pub struct ScanReport {
 }
 
 pub fn scan_codex_home(codex_home: &Path) -> Result<ScanReport, String> {
-    let layout = CodexLayout::from_codex_home(codex_home);
+    scan_codex_home_with_sqlite_home(codex_home, None)
+}
+
+pub fn scan_codex_home_with_sqlite_home(
+    codex_home: &Path,
+    sqlite_home_override: Option<&Path>,
+) -> Result<ScanReport, String> {
+    let layout =
+        CodexLayout::from_codex_home_and_env(codex_home, sqlite_home_override.map(PathBuf::from));
 
     let config_present = layout.config_toml.exists();
     let sqlite_present = layout.state_db.exists();

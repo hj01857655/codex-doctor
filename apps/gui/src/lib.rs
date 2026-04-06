@@ -4,9 +4,10 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use doctor_core::{
-    build_repair_plan, diagnose, execute_repair_plan, list_backups, list_repair_history,
-    prune_backups, restore_backup, save_repair_history, scan_codex_home, BackupManifest,
-    DiagnosisProblem, RepairActionRecord, RepairExecutionReport, RepairHistoryEntry, ScanReport,
+    build_repair_plan, diagnose, execute_repair_plan_with_sqlite_home, list_backups,
+    list_repair_history, prune_backups, restore_backup_with_sqlite_home, save_repair_history,
+    scan_codex_home_with_sqlite_home, BackupManifest, DiagnosisProblem, RepairActionRecord,
+    RepairExecutionReport, RepairHistoryEntry, ScanReport,
 };
 use eframe::egui;
 
@@ -40,7 +41,14 @@ pub struct DashboardViewModel {
 }
 
 pub fn load_dashboard_view_model(codex_home: &Path) -> Result<DashboardViewModel, String> {
-    let scan_report = scan_codex_home(codex_home)?;
+    load_dashboard_view_model_with_sqlite_home(codex_home, None)
+}
+
+pub fn load_dashboard_view_model_with_sqlite_home(
+    codex_home: &Path,
+    sqlite_home_override: Option<&Path>,
+) -> Result<DashboardViewModel, String> {
+    let scan_report = scan_codex_home_with_sqlite_home(codex_home, sqlite_home_override)?;
     let diagnosis = diagnose(&scan_report);
     let repair_plan = build_repair_plan(&scan_report, &diagnosis);
 
@@ -67,6 +75,7 @@ pub enum ActiveTab {
 #[derive(Debug, Clone, Default)]
 pub struct CodexDoctorApp {
     pub codex_home_input: String,
+    pub sqlite_home_input: String,
     pub dashboard: Option<DashboardViewModel>,
     pub last_error: Option<String>,
     pub preview_summary: String,
@@ -88,6 +97,7 @@ impl CodexDoctorApp {
     pub fn new(codex_home: String) -> Self {
         let mut app = Self {
             codex_home_input: codex_home,
+            sqlite_home_input: String::new(),
             backup_keep_latest_input: "5".to_string(),
             active_tab: Some(ActiveTab::Dashboard),
             ..Self::default()
@@ -106,6 +116,10 @@ impl CodexDoctorApp {
         self.codex_home_input = codex_home;
     }
 
+    pub fn set_sqlite_home_input(&mut self, sqlite_home: String) {
+        self.sqlite_home_input = sqlite_home;
+    }
+
     fn codex_home_path(&self) -> Result<PathBuf, String> {
         let codex_home = PathBuf::from(&self.codex_home_input);
         if !codex_home.exists() {
@@ -117,9 +131,21 @@ impl CodexDoctorApp {
         Ok(codex_home)
     }
 
+    fn sqlite_home_override(&self) -> Option<PathBuf> {
+        let trimmed = self.sqlite_home_input.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(PathBuf::from(trimmed))
+        }
+    }
+
     pub fn refresh(&mut self) -> Result<(), String> {
         let codex_home = self.codex_home_path()?;
-        let dashboard = load_dashboard_view_model(&codex_home)?;
+        let dashboard = load_dashboard_view_model_with_sqlite_home(
+            &codex_home,
+            self.sqlite_home_override().as_deref(),
+        )?;
         self.preview_summary.clear();
         self.last_error = None;
         self.dashboard = Some(dashboard);
@@ -140,11 +166,19 @@ impl CodexDoctorApp {
 
     pub fn execute_repair(&mut self) -> Result<(), String> {
         let codex_home = self.codex_home_path()?;
-        let scan_report = scan_codex_home(&codex_home)?;
+        let sqlite_home_override = self.sqlite_home_override();
+        let scan_report =
+            scan_codex_home_with_sqlite_home(&codex_home, sqlite_home_override.as_deref())?;
         let diagnosis = diagnose(&scan_report);
         let plan = build_repair_plan(&scan_report, &diagnosis);
         let backups_root = codex_home.join(".codex-doctor-backups");
-        let execution = execute_repair_plan(&codex_home, &backups_root, &plan, false)?;
+        let execution = execute_repair_plan_with_sqlite_home(
+            &codex_home,
+            &backups_root,
+            &plan,
+            false,
+            sqlite_home_override.as_deref(),
+        )?;
         let history_dir = codex_home.join(".codex-doctor").join("history");
         save_repair_history(&history_dir, &codex_home, &execution, &plan.actions)?;
 
@@ -197,7 +231,12 @@ impl CodexDoctorApp {
                 let codex_home = self.codex_home_path()?;
                 let backups_root = codex_home.join(".codex-doctor-backups");
                 let snapshot_dir = backups_root.join(&manifest.backup_id);
-                restore_backup(&snapshot_dir, &codex_home)?;
+                let sqlite_home_override = self.sqlite_home_override();
+                restore_backup_with_sqlite_home(
+                    &snapshot_dir,
+                    &codex_home,
+                    sqlite_home_override.as_deref(),
+                )?;
                 self.status_message = format!("Restored backup: {}", manifest.backup_id);
                 self.last_operation_title = Some("Last restore".to_string());
                 self.last_operation_at = Some(current_unix_timestamp_sec());
@@ -380,6 +419,8 @@ impl eframe::App for CodexDoctorApp {
 
             ui.label("Codex home:");
             ui.text_edit_singleline(&mut self.codex_home_input);
+            ui.label("SQLite home:");
+            ui.text_edit_singleline(&mut self.sqlite_home_input);
 
             if ui.button("🔄 Refresh").clicked() {
                 if let Err(error) = self.refresh() {

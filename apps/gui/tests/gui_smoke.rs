@@ -51,6 +51,17 @@ fn prepare_codex_home() -> tempfile::TempDir {
     temp
 }
 
+fn prepare_codex_home_with_separate_sqlite_home() -> (tempfile::TempDir, tempfile::TempDir) {
+    let codex_home = prepare_codex_home();
+    let sqlite_home = tempdir().expect("create sqlite home");
+    fs::rename(
+        codex_home.path().join("state_5.sqlite"),
+        sqlite_home.path().join("state_5.sqlite"),
+    )
+    .expect("move sqlite database");
+    (codex_home, sqlite_home)
+}
+
 fn create_threads_table(path: &Path) {
     let connection = Connection::open(path).expect("open sqlite");
     connection
@@ -191,6 +202,23 @@ fn refresh_updates_dashboard_state_from_codex_home_input() {
         .iter()
         .any(|item| item.label == "Problems" && item.value == "1"));
     assert!(app.preview_summary.is_empty());
+}
+
+#[test]
+fn refresh_uses_sqlite_home_override() {
+    let (codex_home, sqlite_home) = prepare_codex_home_with_separate_sqlite_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(String::new());
+    app.set_codex_home_input(codex_home.path().display().to_string());
+    app.set_sqlite_home_input(sqlite_home.path().display().to_string());
+    app.refresh().expect("refresh dashboard");
+
+    let dashboard = app.dashboard.as_ref().expect("dashboard state");
+    assert!(dashboard
+        .summary_items
+        .iter()
+        .any(|item| item.label == "Active sessions" && item.value == "1"));
 }
 
 #[test]
