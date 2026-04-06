@@ -13,6 +13,8 @@ pub enum ProblemSeverity {
 pub enum ProblemCode {
     MissingSessionsDirectory,
     UnreadableSqliteDatabase,
+    LockedDatabase,
+    LockedRolloutFile,
     MissingSqliteThreadRow,
     StaleSqliteRolloutPath,
     RolloutProviderMismatch,
@@ -79,6 +81,15 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
         });
     }
 
+    if report.summary.sqlite_locked {
+        problems.push(DiagnosisProblem {
+            code: ProblemCode::LockedDatabase,
+            severity: ProblemSeverity::Warning,
+            evidence: vec!["state_5.sqlite is locked by another process".to_string()],
+            suggested_fix_ids: Vec::new(),
+        });
+    }
+
     if !report.summary.logs_present {
         problems.push(DiagnosisProblem {
             code: ProblemCode::MissingLogsSqlite,
@@ -107,6 +118,21 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
             code: ProblemCode::UnreadableHistoryJsonl,
             severity: ProblemSeverity::Warning,
             evidence: vec!["history.jsonl exists but could not be read".to_string()],
+            suggested_fix_ids: Vec::new(),
+        });
+    }
+
+    if !report.locked_rollout_paths.is_empty() {
+        let mut evidence = report
+            .locked_rollout_paths
+            .iter()
+            .map(|path| format!("locked rollout file: {}", path.display()))
+            .collect::<Vec<_>>();
+        evidence.sort();
+        problems.push(DiagnosisProblem {
+            code: ProblemCode::LockedRolloutFile,
+            severity: ProblemSeverity::Warning,
+            evidence,
             suggested_fix_ids: Vec::new(),
         });
     }

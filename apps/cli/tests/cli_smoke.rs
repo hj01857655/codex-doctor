@@ -170,7 +170,9 @@ fn scan_json_outputs_summary() {
     ]);
 
     assert_eq!(output["summary"]["config_present"], true);
+    assert_eq!(output["summary"]["sessions_present"], true);
     assert_eq!(output["summary"]["sqlite_present"], true);
+    assert_eq!(output["summary"]["sqlite_locked"], false);
     assert_eq!(output["summary"]["logs_present"], false);
     assert_eq!(output["summary"]["logs_readable"], false);
     assert_eq!(output["summary"]["history_present"], true);

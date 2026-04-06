@@ -14,12 +14,14 @@ fn base_report() -> ScanReport {
             sessions_present: true,
             sqlite_present: true,
             sqlite_readable: true,
+            sqlite_locked: false,
             logs_present: true,
             logs_readable: true,
             history_present: true,
             history_readable: true,
             active_rollout_count: 1,
             archived_rollout_count: 0,
+            locked_rollout_count: 0,
             root_provider: Some("openai".to_string()),
         },
         providers: ProviderDistribution {
@@ -29,6 +31,7 @@ fn base_report() -> ScanReport {
         root_config: Some(RootConfigSnapshot {
             model_provider: Some("openai".to_string()),
         }),
+        locked_rollout_paths: Vec::new(),
         rollout_records: vec![RolloutRecord {
             thread_id: "thr_123".to_string(),
             rollout_path: PathBuf::from("/tmp/sessions/rollout-123.jsonl"),
@@ -149,6 +152,19 @@ fn flags_unreadable_sqlite_database() {
 }
 
 #[test]
+fn flags_locked_database() {
+    let mut report = base_report();
+    report.summary.sqlite_locked = true;
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::LockedDatabase));
+}
+
+#[test]
 fn flags_missing_logs_sqlite() {
     let mut report = base_report();
     report.summary.logs_present = false;
@@ -202,6 +218,20 @@ fn flags_unreadable_history_jsonl() {
         .problems
         .iter()
         .any(|problem| problem.code == ProblemCode::UnreadableHistoryJsonl));
+}
+
+#[test]
+fn flags_locked_rollout_file() {
+    let mut report = base_report();
+    report.summary.locked_rollout_count = 1;
+    report.locked_rollout_paths = vec![PathBuf::from("/tmp/sessions/locked.jsonl")];
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::LockedRolloutFile));
 }
 
 #[test]

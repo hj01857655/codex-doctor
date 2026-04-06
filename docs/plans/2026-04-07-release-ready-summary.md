@@ -43,6 +43,8 @@
 
 - `MissingSessionsDirectory`
 - `UnreadableSqliteDatabase`
+- `LockedDatabase`
+- `LockedRolloutFile`
 - `MissingSqliteThreadRow`
 - `StaleSqliteRolloutPath`
 - `RolloutProviderMismatch`

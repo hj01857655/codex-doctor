@@ -254,12 +254,14 @@ fn scan_report_to_json(report: &ScanReport) -> Value {
             "sessions_present": report.summary.sessions_present,
             "sqlite_present": report.summary.sqlite_present,
             "sqlite_readable": report.summary.sqlite_readable,
+            "sqlite_locked": report.summary.sqlite_locked,
             "logs_present": report.summary.logs_present,
             "logs_readable": report.summary.logs_readable,
             "history_present": report.summary.history_present,
             "history_readable": report.summary.history_readable,
             "active_rollout_count": report.summary.active_rollout_count,
             "archived_rollout_count": report.summary.archived_rollout_count,
+            "locked_rollout_count": report.summary.locked_rollout_count,
             "root_provider": report.summary.root_provider,
         },
         "providers": {
@@ -423,6 +425,8 @@ fn problem_code_to_str(code: &ProblemCode) -> &'static str {
     match code {
         ProblemCode::MissingSessionsDirectory => "missing_sessions_directory",
         ProblemCode::UnreadableSqliteDatabase => "unreadable_sqlite_database",
+        ProblemCode::LockedDatabase => "locked_database",
+        ProblemCode::LockedRolloutFile => "locked_rollout_file",
         ProblemCode::MissingSqliteThreadRow => "missing_sqlite_thread_row",
         ProblemCode::StaleSqliteRolloutPath => "stale_sqlite_rollout_path",
         ProblemCode::RolloutProviderMismatch => "rollout_provider_mismatch",

@@ -27,6 +27,10 @@ pub fn print_scan_report_human(report: &ScanReport) {
         yes_no(report.summary.sqlite_readable)
     );
     println!(
+        "  ├─ SQLite locked:       {}",
+        yes_no(report.summary.sqlite_locked)
+    );
+    println!(
         "  ├─ Logs present:        {}",
         yes_no(report.summary.logs_present)
     );
@@ -49,6 +53,10 @@ pub fn print_scan_report_human(report: &ScanReport) {
     println!(
         "  ├─ Archived sessions:   {}",
         report.summary.archived_rollout_count
+    );
+    println!(
+        "  ├─ Locked rollouts:     {}",
+        report.summary.locked_rollout_count
     );
     println!(
         "  └─ Root provider:       {}",

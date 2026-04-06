@@ -130,15 +130,50 @@ fn scan_codex_home_returns_summary_and_provider_distribution() {
     assert!(report.summary.sessions_present);
     assert!(report.summary.sqlite_present);
     assert!(report.summary.sqlite_readable);
+    assert!(!report.summary.sqlite_locked);
     assert!(!report.summary.logs_present);
     assert!(!report.summary.logs_readable);
     assert!(!report.summary.history_present);
     assert!(!report.summary.history_readable);
     assert_eq!(report.summary.active_rollout_count, 1);
     assert_eq!(report.summary.archived_rollout_count, 1);
+    assert_eq!(report.summary.locked_rollout_count, 0);
     assert_eq!(report.summary.root_provider.as_deref(), Some("openai"));
     assert_eq!(report.providers.rollout.get("openai"), Some(&1));
     assert_eq!(report.providers.rollout.get("mirror"), Some(&1));
     assert_eq!(report.providers.sqlite.get("openai"), Some(&1));
     assert_eq!(report.providers.sqlite.get("mirror"), Some(&1));
+}
+
+#[test]
+fn scan_codex_home_marks_locked_sqlite_database() {
+    let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("tests")
+        .join("fixtures")
+        .join("scan")
+        .join("sample-codex");
+    let temp = tempdir().expect("tempdir");
+    let codex_home = temp.path().join("sample-codex");
+    copy_dir_recursive(&fixture_root, &codex_home);
+
+    let db_path = codex_home.join("state_5.sqlite");
+    let connection = Connection::open(&db_path).expect("open sqlite");
+    create_threads_table(&connection);
+    insert_thread(
+        &connection,
+        "thr_active",
+        "/workspace/scan/active.jsonl",
+        "openai",
+        "/workspace/active",
+        None,
+    );
+    connection
+        .execute_batch("BEGIN EXCLUSIVE")
+        .expect("lock sqlite");
+
+    let report = scan_codex_home(&codex_home).expect("scan report");
+
+    assert!(report.summary.sqlite_locked);
 }
