@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use doctor_core::{
     build_repair_plan, diagnose, execute_repair_plan, list_backups, list_repair_history,
-    restore_backup, save_repair_history, scan_codex_home, BackupManifest, DiagnosisProblem,
-    RepairActionRecord, RepairExecutionReport, RepairHistoryEntry, ScanReport,
+    prune_backups, restore_backup, save_repair_history, scan_codex_home, BackupManifest,
+    DiagnosisProblem, RepairActionRecord, RepairExecutionReport, RepairHistoryEntry, ScanReport,
 };
 use eframe::egui;
 
@@ -60,6 +60,7 @@ pub struct CodexDoctorApp {
     pub last_error: Option<String>,
     pub preview_summary: String,
     pub status_message: String,
+    pub backup_keep_latest_input: String,
     pub active_tab: Option<ActiveTab>,
     pub backups: Vec<BackupManifest>,
     pub history: Vec<RepairHistoryEntry>,
@@ -71,6 +72,7 @@ impl CodexDoctorApp {
     pub fn new(codex_home: String) -> Self {
         Self {
             codex_home_input: codex_home,
+            backup_keep_latest_input: "5".to_string(),
             active_tab: Some(ActiveTab::Dashboard),
             ..Self::default()
         }
@@ -145,6 +147,16 @@ impl CodexDoctorApp {
             }
         }
         Err("No backup selected".to_string())
+    }
+
+    pub fn prune_backups(&mut self, keep_latest: usize) -> Result<(), String> {
+        let codex_home = PathBuf::from(&self.codex_home_input);
+        let backups_root = codex_home.join(".codex-doctor-backups");
+        let report = prune_backups(&backups_root, keep_latest)?;
+        self.load_backups()?;
+        self.status_message = format!("Pruned {} backup(s)", report.removed_backup_ids.len());
+        self.last_error = None;
+        Ok(())
     }
 
     pub fn preview_actions(&self) -> &[String] {
@@ -315,6 +327,28 @@ impl CodexDoctorApp {
     fn render_backups_tab(&mut self, ui: &mut egui::Ui) {
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.heading("Backups");
+
+            ui.horizontal(|ui| {
+                ui.label("Keep latest:");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.backup_keep_latest_input)
+                        .desired_width(64.0),
+                );
+                if ui.button("🗑️ Prune").clicked() {
+                    match self.backup_keep_latest_input.trim().parse::<usize>() {
+                        Ok(keep_latest) => {
+                            if let Err(error) = self.prune_backups(keep_latest) {
+                                self.last_error = Some(error);
+                            }
+                        }
+                        Err(_) => {
+                            self.last_error =
+                                Some("Keep latest must be a non-negative integer".to_string());
+                        }
+                    }
+                }
+            });
+            ui.separator();
 
             if self.backups.is_empty() {
                 ui.label("No backups found.");

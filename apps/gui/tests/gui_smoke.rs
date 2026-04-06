@@ -311,3 +311,40 @@ fn restore_selected_backup_without_selection_reports_error() {
 
     assert!(error.contains("No backup selected"));
 }
+
+#[test]
+fn prune_backups_updates_backup_list_and_status() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute first repair");
+
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config again");
+    app.execute_repair().expect("execute second repair");
+
+    app.load_backups().expect("load backups");
+    assert!(app.backups.len() >= 2, "expected at least two backups");
+
+    app.prune_backups(1).expect("prune backups");
+
+    assert_eq!(app.backups.len(), 1);
+    assert_eq!(app.selected_backup, None);
+    assert!(app.status_message.contains("Pruned 1 backup(s)"));
+}
+
+#[test]
+fn prune_backups_handles_missing_directory_gracefully() {
+    let codex_home = prepare_codex_home();
+    let backups_dir = codex_home.path().join(".codex-doctor-backups");
+    if backups_dir.exists() {
+        fs::remove_dir_all(&backups_dir).expect("remove backups dir");
+    }
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.prune_backups(1).expect("prune backups");
+
+    assert!(app.backups.is_empty());
+    assert_eq!(app.selected_backup, None);
+    assert!(app.status_message.contains("Pruned 0 backup(s)"));
+}
