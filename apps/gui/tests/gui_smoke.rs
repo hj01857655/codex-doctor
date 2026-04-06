@@ -2,9 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use doctor_core::{create_backup_snapshot, save_repair_history, RepairExecutionReport};
-use gui::{
-    load_dashboard_view_model, status_banner_kind, CodexDoctorApp, StatusBannerKind,
-};
+use gui::{load_dashboard_view_model, status_banner_kind, CodexDoctorApp, StatusBannerKind};
 use rusqlite::{params, Connection};
 use tempfile::tempdir;
 
