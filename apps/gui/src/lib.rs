@@ -152,11 +152,25 @@ impl CodexDoctorApp {
         Ok(())
     }
 
+    pub fn refresh_backups(&mut self) -> Result<(), String> {
+        self.load_backups()?;
+        self.status_message = format!("Loaded {} backup(s)", self.backups.len());
+        self.last_error = None;
+        Ok(())
+    }
+
     pub fn load_history(&mut self) -> Result<(), String> {
         let codex_home = self.codex_home_path()?;
         let history_dir = codex_home.join(".codex-doctor").join("history");
         self.history = list_repair_history(&history_dir)?;
         self.selected_history = None;
+        Ok(())
+    }
+
+    pub fn refresh_history(&mut self) -> Result<(), String> {
+        self.load_history()?;
+        self.status_message = format!("Loaded {} repair record(s)", self.history.len());
+        self.last_error = None;
         Ok(())
     }
 
@@ -379,7 +393,14 @@ impl CodexDoctorApp {
 
     fn render_backups_tab(&mut self, ui: &mut egui::Ui) {
         egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.heading("Backups");
+            ui.horizontal(|ui| {
+                ui.heading("Backups");
+                if ui.button("🔄 Refresh").clicked() {
+                    if let Err(error) = self.refresh_backups() {
+                        self.last_error = Some(error);
+                    }
+                }
+            });
 
             ui.horizontal(|ui| {
                 ui.label("Keep latest:");
@@ -439,7 +460,14 @@ impl CodexDoctorApp {
 
     fn render_history_tab(&mut self, ui: &mut egui::Ui) {
         egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.heading("Repair History");
+            ui.horizontal(|ui| {
+                ui.heading("Repair History");
+                if ui.button("🔄 Refresh").clicked() {
+                    if let Err(error) = self.refresh_history() {
+                        self.last_error = Some(error);
+                    }
+                }
+            });
 
             if self.history.is_empty() {
                 ui.label("No repair history found.");

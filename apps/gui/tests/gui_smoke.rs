@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use doctor_core::{create_backup_snapshot, save_repair_history, RepairExecutionReport};
 use gui::{load_dashboard_view_model, CodexDoctorApp};
 use rusqlite::{params, Connection};
 use tempfile::tempdir;
@@ -269,6 +270,26 @@ fn load_backups_populates_backup_selection_state() {
 }
 
 #[test]
+fn refresh_backups_reloads_backup_list() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+    app.load_backups().expect("load backups");
+    let before = app.backups.len();
+
+    let backups_root = codex_home.path().join(".codex-doctor-backups");
+    create_backup_snapshot(codex_home.path(), &backups_root).expect("create backup snapshot");
+
+    app.refresh_backups().expect("refresh backups");
+
+    assert_eq!(app.backups.len(), before + 1);
+    assert_eq!(app.selected_backup, None);
+    assert!(app.status_message.contains("Loaded"));
+}
+
+#[test]
 fn load_history_reads_saved_repair_entries() {
     let codex_home = prepare_codex_home();
     fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
@@ -280,6 +301,33 @@ fn load_history_reads_saved_repair_entries() {
     assert!(!app.history.is_empty());
     assert_eq!(app.selected_history, None);
     assert!(app.history[0].actions_applied >= 1);
+}
+
+#[test]
+fn refresh_history_reloads_history_list() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+    app.load_history().expect("load history");
+    let before = app.history.len();
+
+    let history_dir = codex_home.path().join(".codex-doctor").join("history");
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    save_repair_history(
+        &history_dir,
+        codex_home.path(),
+        &RepairExecutionReport::default(),
+        &[],
+    )
+    .expect("save history");
+
+    app.refresh_history().expect("refresh history");
+
+    assert_eq!(app.history.len(), before + 1);
+    assert_eq!(app.selected_history, None);
+    assert!(app.status_message.contains("Loaded"));
 }
 
 #[test]
