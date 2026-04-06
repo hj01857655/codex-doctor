@@ -486,6 +486,39 @@ fn export_dashboard_report_requires_loaded_dashboard() {
 }
 
 #[test]
+fn prepare_exports_dir_creates_directory_when_missing() {
+    let codex_home = prepare_codex_home();
+    let exports_dir = codex_home.path().join(".codex-doctor").join("exports");
+    if exports_dir.exists() {
+        fs::remove_dir_all(&exports_dir).expect("remove exports dir");
+    }
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    let prepared = app.prepare_exports_dir().expect("prepare exports dir");
+
+    assert_eq!(prepared, exports_dir);
+    assert!(prepared.exists());
+}
+
+#[test]
+fn open_exports_dir_with_updates_status() {
+    let codex_home = prepare_codex_home();
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+
+    let opened = app
+        .open_exports_dir_with(|path| {
+            assert!(
+                path.ends_with(".codex-doctor\\exports") || path.ends_with(".codex-doctor/exports")
+            );
+            Ok(())
+        })
+        .expect("open exports dir");
+
+    assert!(opened.exists());
+    assert!(app.status_message.contains("Opened export folder:"));
+}
+
+#[test]
 fn last_operation_clipboard_text_includes_repair_details() {
     let codex_home = prepare_codex_home();
     fs::write(codex_home.path().join("config.toml"), "").expect("clear config");

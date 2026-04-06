@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use doctor_core::{
@@ -279,18 +280,38 @@ impl CodexDoctorApp {
     }
 
     pub fn export_dashboard_report(&mut self) -> Result<PathBuf, String> {
-        let codex_home = self.codex_home_path()?;
         let text = self
             .dashboard_clipboard_text()
             .ok_or_else(|| "No dashboard loaded".to_string())?;
 
-        let exports_dir = codex_home.join(".codex-doctor").join("exports");
-        fs::create_dir_all(&exports_dir).map_err(|err| err.to_string())?;
+        let exports_dir = self.prepare_exports_dir()?;
         let output_path = exports_dir.join("dashboard-report.txt");
         fs::write(&output_path, text).map_err(|err| err.to_string())?;
         self.status_message = format!("Exported report: {}", output_path.display());
         self.last_error = None;
         Ok(output_path)
+    }
+
+    pub fn prepare_exports_dir(&mut self) -> Result<PathBuf, String> {
+        let codex_home = self.codex_home_path()?;
+        let exports_dir = codex_home.join(".codex-doctor").join("exports");
+        fs::create_dir_all(&exports_dir).map_err(|err| err.to_string())?;
+        Ok(exports_dir)
+    }
+
+    pub fn open_exports_dir_with<F>(&mut self, opener: F) -> Result<PathBuf, String>
+    where
+        F: FnOnce(&Path) -> Result<(), String>,
+    {
+        let exports_dir = self.prepare_exports_dir()?;
+        opener(&exports_dir)?;
+        self.status_message = format!("Opened export folder: {}", exports_dir.display());
+        self.last_error = None;
+        Ok(exports_dir)
+    }
+
+    pub fn open_exports_dir(&mut self) -> Result<PathBuf, String> {
+        self.open_exports_dir_with(open_path_in_file_manager)
     }
 
     pub fn execute_repair_label(&self) -> &'static str {
@@ -453,6 +474,11 @@ impl CodexDoctorApp {
                 }
                 if ui.button("💾 Export report").clicked() {
                     if let Err(error) = self.export_dashboard_report() {
+                        self.last_error = Some(error);
+                    }
+                }
+                if ui.button("📂 Open export folder").clicked() {
+                    if let Err(error) = self.open_exports_dir() {
                         self.last_error = Some(error);
                     }
                 }
@@ -740,6 +766,32 @@ fn current_unix_timestamp_sec() -> i64 {
         .duration_since(UNIX_EPOCH)
         .expect("system time before unix epoch")
         .as_secs() as i64
+}
+
+fn open_path_in_file_manager(path: &Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = Command::new("explorer");
+        command.arg(path);
+        command
+    };
+
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = Command::new("open");
+        command.arg(path);
+        command
+    };
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = {
+        let mut command = Command::new("xdg-open");
+        command.arg(path);
+        command
+    };
+
+    command.spawn().map_err(|err| err.to_string())?;
+    Ok(())
 }
 
 pub fn status_banner_kind(status_message: &str, last_error: Option<&str>) -> StatusBannerKind {
