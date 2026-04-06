@@ -13,6 +13,8 @@ fn base_report() -> ScanReport {
             config_present: true,
             sqlite_present: true,
             sqlite_readable: true,
+            logs_present: true,
+            logs_readable: true,
             history_present: true,
             history_readable: true,
             active_rollout_count: 1,
@@ -38,7 +40,7 @@ fn base_report() -> ScanReport {
             archived: false,
         }],
         sqlite_threads: vec![SqliteThreadRecord {
-            id: "thr_123".to_string(),
+
             rollout_path: PathBuf::from("/tmp/sessions/rollout-123.jsonl"),
             model_provider: "openai".to_string(),
             archived_at: None,
@@ -119,10 +121,39 @@ fn flags_missing_root_model_provider() {
 }
 
 #[test]
+fn flags_missing_logs_sqlite() {
+    let mut report = base_report();
+    report.summary.logs_present = false;
+    report.summary.logs_readable = false;
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::MissingLogsSqlite));
+}
+
+#[test]
+fn flags_unreadable_logs_sqlite() {
+    let mut report = base_report();
+    report.summary.logs_present = true;
+    report.summary.logs_readable = false;
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::UnreadableLogsSqlite));
+}
+
+#[test]
 fn flags_missing_history_jsonl() {
     let mut report = base_report();
+
     report.summary.history_present = false;
-    report.summary.history_readable = false;
+
 
     let diagnosis = diagnose(&report);
 

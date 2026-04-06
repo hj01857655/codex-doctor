@@ -16,6 +16,8 @@ pub enum ProblemCode {
     RolloutProviderMismatch,
     ArchivedStateMismatch,
     MissingRootModelProvider,
+    MissingLogsSqlite,
+    UnreadableLogsSqlite,
     MissingHistoryJsonl,
     UnreadableHistoryJsonl,
 }
@@ -54,6 +56,22 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
             severity: ProblemSeverity::Warning,
             evidence: vec!["root model_provider is missing from config/summary".to_string()],
             suggested_fix_ids: vec!["patch_config_model_provider".to_string()],
+        });
+    }
+
+    if !report.summary.logs_present {
+        problems.push(DiagnosisProblem {
+            code: ProblemCode::MissingLogsSqlite,
+            severity: ProblemSeverity::Info,
+            evidence: vec!["logs_2.sqlite is missing from sqlite home".to_string()],
+            suggested_fix_ids: Vec::new(),
+        });
+    } else if !report.summary.logs_readable {
+        problems.push(DiagnosisProblem {
+            code: ProblemCode::UnreadableLogsSqlite,
+            severity: ProblemSeverity::Warning,
+            evidence: vec!["logs_2.sqlite exists but could not be inspected".to_string()],
+            suggested_fix_ids: Vec::new(),
         });
     }
 

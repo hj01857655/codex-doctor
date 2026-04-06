@@ -13,6 +13,8 @@ fn base_report() -> ScanReport {
             config_present: true,
             sqlite_present: true,
             sqlite_readable: true,
+            logs_present: true,
+            logs_readable: true,
             history_present: true,
             history_readable: true,
             active_rollout_count: 1,

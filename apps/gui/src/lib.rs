@@ -902,6 +902,14 @@ fn build_summary_items(
             },
         },
         SummaryItemViewModel {
+            label: "Logs readable".to_string(),
+            value: if scan_report.summary.logs_readable {
+                "yes".to_string()
+            } else {
+                "no".to_string()
+            },
+        },
+        SummaryItemViewModel {
             label: "History readable".to_string(),
             value: if scan_report.summary.history_readable {
                 "yes".to_string()

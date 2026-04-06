@@ -253,6 +253,8 @@ fn scan_report_to_json(report: &ScanReport) -> Value {
             "config_present": report.summary.config_present,
             "sqlite_present": report.summary.sqlite_present,
             "sqlite_readable": report.summary.sqlite_readable,
+            "logs_present": report.summary.logs_present,
+            "logs_readable": report.summary.logs_readable,
             "history_present": report.summary.history_present,
             "history_readable": report.summary.history_readable,
             "active_rollout_count": report.summary.active_rollout_count,
@@ -263,7 +265,7 @@ fn scan_report_to_json(report: &ScanReport) -> Value {
             "rollout": report.providers.rollout,
             "sqlite": report.providers.sqlite,
         },
-
+        "root_config": report.root_config.as_ref().map(|config| json!({
             "model_provider": config.model_provider,
         })),
         "rollout_records": report
@@ -423,6 +425,10 @@ fn problem_code_to_str(code: &ProblemCode) -> &'static str {
         ProblemCode::RolloutProviderMismatch => "rollout_provider_mismatch",
         ProblemCode::ArchivedStateMismatch => "archived_state_mismatch",
         ProblemCode::MissingRootModelProvider => "missing_root_model_provider",
+        ProblemCode::MissingLogsSqlite => "missing_logs_sqlite",
+        ProblemCode::UnreadableLogsSqlite => "unreadable_logs_sqlite",
+        ProblemCode::MissingHistoryJsonl => "missing_history_jsonl",
+        ProblemCode::UnreadableHistoryJsonl => "unreadable_history_jsonl",
     }
 }
 

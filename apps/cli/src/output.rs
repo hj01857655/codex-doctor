@@ -23,6 +23,14 @@ pub fn print_scan_report_human(report: &ScanReport) {
         yes_no(report.summary.sqlite_readable)
     );
     println!(
+        "  ├─ Logs present:        {}",
+        yes_no(report.summary.logs_present)
+    );
+    println!(
+        "  ├─ Logs readable:       {}",
+        yes_no(report.summary.logs_readable)
+    );
+    println!(
         "  ├─ History present:     {}",
         yes_no(report.summary.history_present)
     );
@@ -46,7 +54,7 @@ pub fn print_scan_report_human(report: &ScanReport) {
             .as_deref()
             .unwrap_or("(not set)")
     );
-    println!();
+
 
     if !report.providers.rollout.is_empty() || !report.providers.sqlite.is_empty() {
         println!("🔧 Provider Distribution:");
