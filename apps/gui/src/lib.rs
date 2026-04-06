@@ -159,6 +159,15 @@ impl CodexDoctorApp {
         Ok(())
     }
 
+    pub fn prune_backups_from_input(&mut self) -> Result<(), String> {
+        let keep_latest = self
+            .backup_keep_latest_input
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| "Keep latest must be a non-negative integer".to_string())?;
+        self.prune_backups(keep_latest)
+    }
+
     pub fn preview_actions(&self) -> &[String] {
         self.dashboard
             .as_ref()
@@ -335,16 +344,8 @@ impl CodexDoctorApp {
                         .desired_width(64.0),
                 );
                 if ui.button("🗑️ Prune").clicked() {
-                    match self.backup_keep_latest_input.trim().parse::<usize>() {
-                        Ok(keep_latest) => {
-                            if let Err(error) = self.prune_backups(keep_latest) {
-                                self.last_error = Some(error);
-                            }
-                        }
-                        Err(_) => {
-                            self.last_error =
-                                Some("Keep latest must be a non-negative integer".to_string());
-                        }
+                    if let Err(error) = self.prune_backups_from_input() {
+                        self.last_error = Some(error);
                     }
                 }
             });

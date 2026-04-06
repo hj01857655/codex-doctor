@@ -348,3 +348,38 @@ fn prune_backups_handles_missing_directory_gracefully() {
     assert_eq!(app.selected_backup, None);
     assert!(app.status_message.contains("Pruned 0 backup(s)"));
 }
+
+#[test]
+fn prune_backups_from_input_rejects_invalid_integer() {
+    let codex_home = prepare_codex_home();
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.backup_keep_latest_input = "abc".to_string();
+
+    let error = app
+        .prune_backups_from_input()
+        .expect_err("invalid input should fail");
+
+    assert!(error.contains("Keep latest must be a non-negative integer"));
+}
+
+#[test]
+fn prune_backups_from_input_accepts_trimmed_integer() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute first repair");
+
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config again");
+    app.execute_repair().expect("execute second repair");
+
+    app.load_backups().expect("load backups");
+    assert!(app.backups.len() >= 2, "expected at least two backups");
+
+    app.backup_keep_latest_input = " 1 ".to_string();
+    app.prune_backups_from_input()
+        .expect("trimmed integer should parse");
+
+    assert_eq!(app.backups.len(), 1);
+    assert!(app.status_message.contains("Pruned 1 backup(s)"));
+}
