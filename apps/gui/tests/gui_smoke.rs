@@ -180,7 +180,6 @@ fn gui_layer_builds_summary_view_model_from_core_scan() {
 fn new_with_codex_home_prefetches_dashboard() {
     let codex_home = prepare_codex_home();
 
-
     let app = CodexDoctorApp::new(codex_home.path().display().to_string());
 
     let dashboard = app.dashboard.as_ref().expect("dashboard preloaded");
@@ -217,7 +216,6 @@ fn refresh_updates_dashboard_state_from_codex_home_input() {
         .summary_items
         .iter()
         .any(|item| item.label == "Problems" && item.value == "2"));
-
 }
 
 #[test]

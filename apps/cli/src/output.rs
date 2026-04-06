@@ -55,7 +55,6 @@ pub fn print_scan_report_human(report: &ScanReport) {
             .unwrap_or("(not set)")
     );
 
-
     if !report.providers.rollout.is_empty() || !report.providers.sqlite.is_empty() {
         println!("🔧 Provider Distribution:");
         if !report.providers.rollout.is_empty() {

@@ -154,7 +154,6 @@ fn flags_missing_history_jsonl() {
 
     report.summary.history_present = false;
 
-
     let diagnosis = diagnose(&report);
 
     assert!(diagnosis
