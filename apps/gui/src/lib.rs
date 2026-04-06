@@ -246,22 +246,31 @@ impl CodexDoctorApp {
         let dashboard = self.dashboard.as_ref()?;
         let mut text = render_dashboard_text(dashboard);
 
-        if let Some(title) = &self.last_operation_title {
+        if let Some(last_operation) = self.last_operation_clipboard_text() {
             text.push_str("\nLast operation:\n");
-            text.push_str(title);
-            if let Some(timestamp) = self.last_operation_at {
-                text.push_str("\nAt: ");
-                text.push_str(&format_timestamp_sec(timestamp));
-            }
-            if self.last_execution.is_empty() {
-                text.push_str("\nNo action-level details recorded for this operation.");
-            } else {
-                for action in &self.last_execution {
-                    text.push_str("\n- ");
-                    text.push_str(&action.action_type);
-                    text.push_str(": ");
-                    text.push_str(&action.details);
-                }
+            text.push_str(&last_operation);
+        }
+
+        Some(text)
+    }
+
+    pub fn last_operation_clipboard_text(&self) -> Option<String> {
+        let title = self.last_operation_title.as_deref()?;
+        let mut text = String::from(title);
+
+        if let Some(timestamp) = self.last_operation_at {
+            text.push_str("\nAt: ");
+            text.push_str(&format_timestamp_sec(timestamp));
+        }
+
+        if self.last_execution.is_empty() {
+            text.push_str("\nNo action-level details recorded for this operation.");
+        } else {
+            for action in &self.last_execution {
+                text.push_str("\n- ");
+                text.push_str(&action.action_type);
+                text.push_str(": ");
+                text.push_str(&action.details);
             }
         }
 
@@ -453,6 +462,11 @@ impl CodexDoctorApp {
                     );
                     if let Some(timestamp) = self.last_operation_at {
                         ui.label(format!("At: {}", format_timestamp_sec(timestamp)));
+                    }
+                    if ui.button("📋 Copy last operation").clicked() {
+                        if let Some(text) = self.last_operation_clipboard_text() {
+                            ctx.copy_text(text);
+                        }
                     }
                     if self.last_execution.is_empty() {
                         ui.label("No action-level details recorded for this operation.");

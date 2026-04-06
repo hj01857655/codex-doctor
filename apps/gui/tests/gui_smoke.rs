@@ -455,6 +455,44 @@ fn dashboard_clipboard_text_includes_summary_problems_and_last_operation() {
 }
 
 #[test]
+fn last_operation_clipboard_text_includes_repair_details() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+
+    let copied = app
+        .last_operation_clipboard_text()
+        .expect("last operation clipboard text");
+
+    assert!(copied.contains("Last repair"));
+    assert!(copied.contains("At:"));
+    assert!(copied.contains("patch_config_model_provider"));
+}
+
+#[test]
+fn last_operation_clipboard_text_handles_restore_without_action_details() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+    app.load_backups().expect("load backups");
+    app.selected_backup = Some(0);
+    app.restore_selected_backup()
+        .expect("restore selected backup");
+
+    let copied = app
+        .last_operation_clipboard_text()
+        .expect("last operation clipboard text");
+
+    assert!(copied.contains("Last restore"));
+    assert!(copied.contains("At:"));
+    assert!(copied.contains("No action-level details recorded"));
+}
+
+#[test]
 fn prune_backups_updates_backup_list_and_status() {
     let codex_home = prepare_codex_home();
     fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
