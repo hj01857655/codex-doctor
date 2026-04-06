@@ -530,7 +530,7 @@ Add smoke tests for:
 
 Run:
 ```powershell
-cargo test -p cli cli_smoke -- --nocapture
+cargo test -p cli --test cli_smoke -- --nocapture
 ```
 Expected: FAIL because the CLI only prints a placeholder string.
 
@@ -550,7 +550,7 @@ Return non-zero exit codes on execution failure.
 
 Run:
 ```powershell
-cargo test -p cli cli_smoke -- --nocapture
+cargo test -p cli --test cli_smoke -- --nocapture
 ```
 Expected: PASS.
 

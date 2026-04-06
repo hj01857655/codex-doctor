@@ -45,7 +45,7 @@ fn repair_with_save_history_writes_history_entry_json() {
     let backups_root = tempdir().expect("create backups root");
     fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_cli"))
+    let output = Command::new(env!("CARGO_BIN_EXE_codex-doctor"))
         .args([
             "repair",
             "--codex-home",
@@ -70,7 +70,7 @@ fn repair_with_save_history_writes_history_entry_json() {
 #[test]
 fn history_json_outputs_saved_entries() {
     // first run repair --save-history
-    // then run: cli history --history-dir <dir> --json
+    // then run: codex-doctor history --history-dir <dir> --json
     // assert array len == 1 and codex_home matches fixture path
 }
 ```
@@ -79,7 +79,7 @@ fn history_json_outputs_saved_entries() {
 
 Run:
 ```powershell
-cargo test -p cli cli_smoke -- --nocapture
+cargo test -p cli --test cli_smoke -- --nocapture
 ```
 Expected: FAIL because the new smoke cases do not exist yet.
 

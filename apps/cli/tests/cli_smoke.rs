@@ -131,7 +131,7 @@ fn insert_thread(
 }
 
 fn run_cli(args: &[&str]) -> Value {
-    let output = Command::new(env!("CARGO_BIN_EXE_cli"))
+    let output = Command::new(env!("CARGO_BIN_EXE_codex-doctor"))
         .args(args)
         .output()
         .expect("run cli");
@@ -145,7 +145,7 @@ fn run_cli(args: &[&str]) -> Value {
 }
 
 fn run_cli_text(args: &[&str]) -> String {
-    let output = Command::new(env!("CARGO_BIN_EXE_cli"))
+    let output = Command::new(env!("CARGO_BIN_EXE_codex-doctor"))
         .args(args)
         .output()
         .expect("run cli");
@@ -309,7 +309,7 @@ fn backup_list_json_outputs_manifests() {
     let backups_root = tempdir().expect("create backups root");
     fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
 
-    let create_output = Command::new(env!("CARGO_BIN_EXE_cli"))
+    let create_output = Command::new(env!("CARGO_BIN_EXE_codex-doctor"))
         .args([
             "repair",
             "--codex-home",
