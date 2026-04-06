@@ -314,6 +314,19 @@ impl CodexDoctorApp {
         self.open_exports_dir_with(open_path_in_file_manager)
     }
 
+    pub fn export_last_operation_report(&mut self) -> Result<PathBuf, String> {
+        let text = self
+            .last_operation_clipboard_text()
+            .ok_or_else(|| "No last operation available".to_string())?;
+
+        let exports_dir = self.prepare_exports_dir()?;
+        let output_path = exports_dir.join("last-operation-report.txt");
+        fs::write(&output_path, text).map_err(|err| err.to_string())?;
+        self.status_message = format!("Exported operation report: {}", output_path.display());
+        self.last_error = None;
+        Ok(output_path)
+    }
+
     pub fn execute_repair_label(&self) -> &'static str {
         "Execute repair"
     }
@@ -509,6 +522,11 @@ impl CodexDoctorApp {
                     );
                     if let Some(timestamp) = self.last_operation_at {
                         ui.label(format!("At: {}", format_timestamp_sec(timestamp)));
+                    }
+                    if ui.button("💾 Export last operation").clicked() {
+                        if let Err(error) = self.export_last_operation_report() {
+                            self.last_error = Some(error);
+                        }
                     }
                     if ui.button("📋 Copy last operation").clicked() {
                         if let Some(text) = self.last_operation_clipboard_text() {

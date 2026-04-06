@@ -486,6 +486,39 @@ fn export_dashboard_report_requires_loaded_dashboard() {
 }
 
 #[test]
+fn export_last_operation_report_writes_text_file() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+
+    let exported = app
+        .export_last_operation_report()
+        .expect("export last operation report");
+    let content = fs::read_to_string(&exported).expect("read exported operation report");
+
+    assert!(exported.exists());
+    assert!(exported.ends_with("last-operation-report.txt"));
+    assert!(content.contains("Last repair"));
+    assert!(content.contains("At:"));
+    assert!(content.contains("patch_config_model_provider"));
+    assert!(app.status_message.contains("Exported operation report:"));
+}
+
+#[test]
+fn export_last_operation_report_requires_last_operation() {
+    let codex_home = prepare_codex_home();
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+
+    let error = app
+        .export_last_operation_report()
+        .expect_err("export should fail without last operation");
+
+    assert!(error.contains("No last operation available"));
+}
+
+#[test]
 fn prepare_exports_dir_creates_directory_when_missing() {
     let codex_home = prepare_codex_home();
     let exports_dir = codex_home.path().join(".codex-doctor").join("exports");
