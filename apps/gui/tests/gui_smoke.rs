@@ -149,16 +149,24 @@ fn gui_layer_builds_summary_view_model_from_core_scan() {
     assert!(view_model
         .summary_items
         .iter()
-        .any(|item| item.label == "Problems" && item.value == "1"));
+        .any(|item| item.label == "Problems" && item.value == "2"));
+    assert!(view_model
+        .summary_items
+        .iter()
+        .any(|item| item.label == "History readable" && item.value == "no"));
     assert!(view_model
         .problems
         .iter()
         .any(|problem| problem.code == "missing_root_model_provider"));
     assert!(view_model
+        .problems
+        .iter()
+        .any(|problem| problem.code == "missing_history_jsonl"));
+    assert!(view_model
         .preview_actions
         .iter()
         .any(|action| action == "patch_config_model_provider"));
-}
+
 
 #[test]
 fn new_with_codex_home_prefetches_dashboard() {

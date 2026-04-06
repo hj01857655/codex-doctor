@@ -16,6 +16,8 @@ pub enum ProblemCode {
     RolloutProviderMismatch,
     ArchivedStateMismatch,
     MissingRootModelProvider,
+    MissingHistoryJsonl,
+    UnreadableHistoryJsonl,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,6 +54,22 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
             severity: ProblemSeverity::Warning,
             evidence: vec!["root model_provider is missing from config/summary".to_string()],
             suggested_fix_ids: vec!["patch_config_model_provider".to_string()],
+        });
+    }
+
+    if !report.summary.history_present {
+        problems.push(DiagnosisProblem {
+            code: ProblemCode::MissingHistoryJsonl,
+            severity: ProblemSeverity::Info,
+            evidence: vec!["history.jsonl is missing from codex home".to_string()],
+            suggested_fix_ids: Vec::new(),
+        });
+    } else if !report.summary.history_readable {
+        problems.push(DiagnosisProblem {
+            code: ProblemCode::UnreadableHistoryJsonl,
+            severity: ProblemSeverity::Warning,
+            evidence: vec!["history.jsonl exists but could not be read".to_string()],
+            suggested_fix_ids: Vec::new(),
         });
     }
 

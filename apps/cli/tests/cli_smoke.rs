@@ -171,6 +171,8 @@ fn scan_json_outputs_summary() {
 
     assert_eq!(output["summary"]["config_present"], true);
     assert_eq!(output["summary"]["sqlite_present"], true);
+    assert_eq!(output["summary"]["history_present"], true);
+    assert_eq!(output["summary"]["history_readable"], true);
 }
 
 #[test]
@@ -209,7 +211,15 @@ fn diagnose_json_outputs_problems() {
         "--json",
     ]);
 
-    assert_eq!(output["problems"][0]["code"], "missing_root_model_provider");
+    let codes = output["problems"]
+        .as_array()
+        .expect("problems array")
+        .iter()
+        .map(|problem| problem["code"].as_str().expect("problem code"))
+        .collect::<Vec<_>>();
+
+    assert!(codes.contains(&"missing_root_model_provider"));
+    assert!(!codes.contains(&"missing_history_jsonl"));
 }
 
 #[test]
@@ -454,6 +464,7 @@ fn scan_without_json_outputs_human_readable_report() {
 
     assert!(output.contains("Codex Doctor - Scan Report"));
     assert!(output.contains("Summary:"));
+    assert!(output.contains("History present:"));
     assert!(output.contains("Active sessions:"));
 }
 

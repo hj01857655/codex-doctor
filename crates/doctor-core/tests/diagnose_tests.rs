@@ -13,6 +13,8 @@ fn base_report() -> ScanReport {
             config_present: true,
             sqlite_present: true,
             sqlite_readable: true,
+            history_present: true,
+            history_readable: true,
             active_rollout_count: 1,
             archived_rollout_count: 0,
             root_provider: Some("openai".to_string()),
@@ -114,6 +116,34 @@ fn flags_missing_root_model_provider() {
         .problems
         .iter()
         .any(|problem| problem.code == ProblemCode::MissingRootModelProvider));
+}
+
+#[test]
+fn flags_missing_history_jsonl() {
+    let mut report = base_report();
+    report.summary.history_present = false;
+    report.summary.history_readable = false;
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::MissingHistoryJsonl));
+}
+
+#[test]
+fn flags_unreadable_history_jsonl() {
+    let mut report = base_report();
+    report.summary.history_present = true;
+    report.summary.history_readable = false;
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::UnreadableHistoryJsonl));
 }
 
 #[test]

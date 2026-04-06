@@ -12,6 +12,8 @@ pub struct ScanSummary {
     pub config_present: bool,
     pub sqlite_present: bool,
     pub sqlite_readable: bool,
+    pub history_present: bool,
+    pub history_readable: bool,
     pub active_rollout_count: usize,
     pub archived_rollout_count: usize,
     pub root_provider: Option<String>,
@@ -55,6 +57,13 @@ pub fn scan_codex_home_with_sqlite_home(
         .as_ref()
         .and_then(|config| config.model_provider.clone());
 
+    let history_present = layout.history_jsonl.exists();
+    let history_readable = if history_present {
+        fs::read_to_string(&layout.history_jsonl).is_ok()
+    } else {
+        false
+    };
+
     let active_rollouts = read_rollouts_in_dir(&layout.sessions_dir, ThreadLocation::Active)?;
     let archived_rollouts =
         read_rollouts_in_dir(&layout.archived_sessions_dir, ThreadLocation::Archived)?;
@@ -86,6 +95,8 @@ pub fn scan_codex_home_with_sqlite_home(
             config_present,
             sqlite_present,
             sqlite_readable,
+            history_present,
+            history_readable,
             active_rollout_count: active_rollouts.len(),
             archived_rollout_count: archived_rollouts.len(),
             root_provider,

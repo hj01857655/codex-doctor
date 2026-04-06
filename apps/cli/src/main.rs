@@ -253,6 +253,8 @@ fn scan_report_to_json(report: &ScanReport) -> Value {
             "config_present": report.summary.config_present,
             "sqlite_present": report.summary.sqlite_present,
             "sqlite_readable": report.summary.sqlite_readable,
+            "history_present": report.summary.history_present,
+            "history_readable": report.summary.history_readable,
             "active_rollout_count": report.summary.active_rollout_count,
             "archived_rollout_count": report.summary.archived_rollout_count,
             "root_provider": report.summary.root_provider,
@@ -261,7 +263,7 @@ fn scan_report_to_json(report: &ScanReport) -> Value {
             "rollout": report.providers.rollout,
             "sqlite": report.providers.sqlite,
         },
-        "root_config": report.root_config.as_ref().map(|config| json!({
+
             "model_provider": config.model_provider,
         })),
         "rollout_records": report

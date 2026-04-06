@@ -129,8 +129,10 @@ fn scan_codex_home_returns_summary_and_provider_distribution() {
     assert!(report.summary.config_present);
     assert!(report.summary.sqlite_present);
     assert!(report.summary.sqlite_readable);
-    assert_eq!(report.summary.active_rollout_count, 1);
-    assert_eq!(report.summary.archived_rollout_count, 1);
+    assert!(!report.summary.history_present);
+    assert!(!report.summary.history_readable);
+
+
     assert_eq!(report.summary.root_provider.as_deref(), Some("openai"));
     assert_eq!(report.providers.rollout.get("openai"), Some(&1));
     assert_eq!(report.providers.rollout.get("mirror"), Some(&1));

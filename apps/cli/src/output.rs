@@ -23,6 +23,14 @@ pub fn print_scan_report_human(report: &ScanReport) {
         yes_no(report.summary.sqlite_readable)
     );
     println!(
+        "  ├─ History present:     {}",
+        yes_no(report.summary.history_present)
+    );
+    println!(
+        "  ├─ History readable:    {}",
+        yes_no(report.summary.history_readable)
+    );
+    println!(
         "  ├─ Active sessions:     {}",
         report.summary.active_rollout_count
     );

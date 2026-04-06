@@ -13,6 +13,8 @@ fn base_report() -> ScanReport {
             config_present: true,
             sqlite_present: true,
             sqlite_readable: true,
+            history_present: true,
+            history_readable: true,
             active_rollout_count: 1,
             archived_rollout_count: 0,
             root_provider: Some("openai".to_string()),
