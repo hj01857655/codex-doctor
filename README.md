@@ -31,6 +31,34 @@ A cross-platform CLI and GUI tool for diagnosing and repairing local Codex state
 
 ## Installation
 
+### Recommended: download prebuilt binaries from Releases
+
+For normal users, the recommended path is to download a prebuilt release from GitHub Releases instead of building from source.
+
+Planned release assets:
+- `codex-doctor-windows-x86_64.zip`
+- `codex-doctor-linux-x86_64.tar.gz`
+- `codex-doctor-macos-x86_64.tar.gz`
+
+Each archive is intended to contain:
+- `codex-doctor` / `codex-doctor.exe`
+- `gui` / `gui.exe`
+- `README.md`
+
+After extracting:
+
+```bash
+codex-doctor scan --codex-home ~/.codex
+```
+
+On Windows:
+
+```powershell
+.\codex-doctor.exe scan --codex-home C:\Users\<you>\.codex
+```
+
+### Build from source
+
 ```bash
 cargo build --release
 ```

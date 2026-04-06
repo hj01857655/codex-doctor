@@ -18,12 +18,14 @@ jobs:
             asset_name: codex-doctor-windows-x86_64.zip
             cli_bin: target/release/codex-doctor.exe
             gui_bin: target/release/gui.exe
-            shell: pwsh
           - os: ubuntu-latest
             asset_name: codex-doctor-linux-x86_64.tar.gz
             cli_bin: target/release/codex-doctor
             gui_bin: target/release/gui
-            shell: bash
+          - os: macos-13
+            asset_name: codex-doctor-macos-x86_64.tar.gz
+            cli_bin: target/release/codex-doctor
+            gui_bin: target/release/gui
 
     runs-on: ${{ matrix.os }}
 
@@ -54,6 +56,16 @@ jobs:
 
       - name: Package Linux assets
         if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p dist
+          cp "${{ matrix.cli_bin }}" dist/
+          cp "${{ matrix.gui_bin }}" dist/
+          cp README.md dist/
+          tar -czf "${{ matrix.asset_name }}" -C dist .
+        shell: bash
+
+      - name: Package macOS assets
+        if: matrix.os == 'macos-13'
         run: |
           mkdir -p dist
           cp "${{ matrix.cli_bin }}" dist/
