@@ -1,5 +1,7 @@
 # codex-doctor
 
+[![CI](https://github.com/hj01857655/codex-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/hj01857655/codex-doctor/actions/workflows/ci.yml)
+
 A cross-platform CLI and GUI tool for diagnosing and repairing local Codex state issues.
 
 ## Current Status
