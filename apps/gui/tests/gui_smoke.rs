@@ -460,7 +460,9 @@ fn export_dashboard_report_writes_text_file() {
     let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
     app.execute_repair().expect("execute repair");
 
-    let exported = app.export_dashboard_report().expect("export dashboard report");
+    let exported = app
+        .export_dashboard_report()
+        .expect("export dashboard report");
     let content = fs::read_to_string(&exported).expect("read exported report");
 
     assert!(exported.exists());
