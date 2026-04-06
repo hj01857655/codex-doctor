@@ -40,7 +40,7 @@ fn base_report() -> ScanReport {
             archived: false,
         }],
         sqlite_threads: vec![SqliteThreadRecord {
-
+            id: "thr_123".to_string(),
             rollout_path: PathBuf::from("/tmp/sessions/rollout-123.jsonl"),
             model_provider: "openai".to_string(),
             archived_at: None,

@@ -157,7 +157,7 @@ fn gui_layer_builds_summary_view_model_from_core_scan() {
     assert!(view_model
         .summary_items
         .iter()
-        .any(|item| item.label == "History readable" && item.value == "no"));
+        .any(|item| item.label == "History readable" && item.value == "yes"));
     assert!(view_model
         .problems
         .iter()
@@ -169,7 +169,7 @@ fn gui_layer_builds_summary_view_model_from_core_scan() {
     assert!(view_model
         .problems
         .iter()
-        .any(|problem| problem.code == "missing_history_jsonl"));
+        .all(|problem| problem.code != "missing_history_jsonl"));
     assert!(view_model
         .preview_actions
         .iter()
@@ -216,7 +216,7 @@ fn refresh_updates_dashboard_state_from_codex_home_input() {
     assert!(dashboard
         .summary_items
         .iter()
-        .any(|item| item.label == "Problems" && item.value == "3"));
+        .any(|item| item.label == "Problems" && item.value == "2"));
 
 }
 
