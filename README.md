@@ -36,8 +36,20 @@ cargo build --release
 ```
 
 Binaries will be available at:
-- CLI: `target/release/cli` (or `cli.exe` on Windows)
+- CLI: `target/release/codex-doctor` (or `codex-doctor.exe` on Windows)
 - GUI: `target/release/gui` (or `gui.exe` on Windows)
+
+If you already have Rust installed, you can install the CLI as a normal command:
+
+```bash
+cargo install --path apps/cli --force
+```
+
+After that, you can run:
+
+```bash
+codex-doctor scan --codex-home ~/.codex
+```
 
 ## CLI Usage
 

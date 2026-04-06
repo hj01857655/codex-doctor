@@ -3,6 +3,14 @@ name = "cli"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "cli"
+path = "src/main.rs"
+
+[[bin]]
+name = "codex-doctor"
+path = "src/bin/codex-doctor.rs"
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 doctor-core = { path = "../../crates/doctor-core" }
