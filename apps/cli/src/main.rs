@@ -251,6 +251,7 @@ fn scan_report_to_json(report: &ScanReport) -> Value {
     json!({
         "summary": {
             "config_present": report.summary.config_present,
+            "sessions_present": report.summary.sessions_present,
             "sqlite_present": report.summary.sqlite_present,
             "sqlite_readable": report.summary.sqlite_readable,
             "logs_present": report.summary.logs_present,
@@ -420,6 +421,8 @@ fn repair_history_entry_to_json(entry: &doctor_core::RepairHistoryEntry) -> Valu
 
 fn problem_code_to_str(code: &ProblemCode) -> &'static str {
     match code {
+        ProblemCode::MissingSessionsDirectory => "missing_sessions_directory",
+        ProblemCode::UnreadableSqliteDatabase => "unreadable_sqlite_database",
         ProblemCode::MissingSqliteThreadRow => "missing_sqlite_thread_row",
         ProblemCode::StaleSqliteRolloutPath => "stale_sqlite_rollout_path",
         ProblemCode::RolloutProviderMismatch => "rollout_provider_mismatch",

@@ -15,6 +15,10 @@ pub fn print_scan_report_human(report: &ScanReport) {
         yes_no(report.summary.config_present)
     );
     println!(
+        "  ├─ Sessions present:    {}",
+        yes_no(report.summary.sessions_present)
+    );
+    println!(
         "  ├─ SQLite present:      {}",
         yes_no(report.summary.sqlite_present)
     );

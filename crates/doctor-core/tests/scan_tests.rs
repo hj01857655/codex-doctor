@@ -127,6 +127,7 @@ fn scan_codex_home_returns_summary_and_provider_distribution() {
     let report = scan_codex_home(&codex_home).expect("scan report");
 
     assert!(report.summary.config_present);
+    assert!(report.summary.sessions_present);
     assert!(report.summary.sqlite_present);
     assert!(report.summary.sqlite_readable);
     assert!(!report.summary.logs_present);

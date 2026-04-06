@@ -11,6 +11,7 @@ fn base_report() -> ScanReport {
     ScanReport {
         summary: ScanSummary {
             config_present: true,
+            sessions_present: true,
             sqlite_present: true,
             sqlite_readable: true,
             logs_present: true,
@@ -118,6 +119,33 @@ fn flags_missing_root_model_provider() {
         .problems
         .iter()
         .any(|problem| problem.code == ProblemCode::MissingRootModelProvider));
+}
+
+#[test]
+fn flags_missing_sessions_directory() {
+    let mut report = base_report();
+    report.summary.sessions_present = false;
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::MissingSessionsDirectory));
+}
+
+#[test]
+fn flags_unreadable_sqlite_database() {
+    let mut report = base_report();
+    report.summary.sqlite_present = true;
+    report.summary.sqlite_readable = false;
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::UnreadableSqliteDatabase));
 }
 
 #[test]

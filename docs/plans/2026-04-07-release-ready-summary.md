@@ -41,6 +41,8 @@
 
 当前已覆盖的问题类型：
 
+- `MissingSessionsDirectory`
+- `UnreadableSqliteDatabase`
 - `MissingSqliteThreadRow`
 - `StaleSqliteRolloutPath`
 - `RolloutProviderMismatch`

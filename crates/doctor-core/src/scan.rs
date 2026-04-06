@@ -10,6 +10,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScanSummary {
     pub config_present: bool,
+    pub sessions_present: bool,
     pub sqlite_present: bool,
     pub sqlite_readable: bool,
     pub logs_present: bool,
@@ -48,6 +49,7 @@ pub fn scan_codex_home_with_sqlite_home(
         CodexLayout::from_codex_home_and_env(codex_home, sqlite_home_override.map(PathBuf::from));
 
     let config_present = layout.config_toml.exists();
+    let sessions_present = layout.sessions_dir.exists();
     let sqlite_present = layout.state_db.exists();
 
     let root_config = if config_present {
@@ -102,6 +104,7 @@ pub fn scan_codex_home_with_sqlite_home(
     Ok(ScanReport {
         summary: ScanSummary {
             config_present,
+            sessions_present,
             sqlite_present,
             sqlite_readable,
             logs_present,

@@ -11,6 +11,8 @@ pub enum ProblemSeverity {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProblemCode {
+    MissingSessionsDirectory,
+    UnreadableSqliteDatabase,
     MissingSqliteThreadRow,
     StaleSqliteRolloutPath,
     RolloutProviderMismatch,
@@ -56,6 +58,24 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
             severity: ProblemSeverity::Warning,
             evidence: vec!["root model_provider is missing from config/summary".to_string()],
             suggested_fix_ids: vec!["patch_config_model_provider".to_string()],
+        });
+    }
+
+    if !report.summary.sessions_present {
+        problems.push(DiagnosisProblem {
+            code: ProblemCode::MissingSessionsDirectory,
+            severity: ProblemSeverity::Warning,
+            evidence: vec!["sessions directory is missing from codex home".to_string()],
+            suggested_fix_ids: Vec::new(),
+        });
+    }
+
+    if report.summary.sqlite_present && !report.summary.sqlite_readable {
+        problems.push(DiagnosisProblem {
+            code: ProblemCode::UnreadableSqliteDatabase,
+            severity: ProblemSeverity::Warning,
+            evidence: vec!["state_5.sqlite exists but could not be read".to_string()],
+            suggested_fix_ids: Vec::new(),
         });
     }
 

@@ -11,6 +11,7 @@ fn base_report() -> ScanReport {
     ScanReport {
         summary: ScanSummary {
             config_present: true,
+            sessions_present: true,
             sqlite_present: true,
             sqlite_readable: true,
             logs_present: true,
