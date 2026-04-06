@@ -42,7 +42,7 @@ Binaries will be available at:
 If you already have Rust installed, you can install the CLI as a normal command:
 
 ```bash
-cargo install --path apps/cli --force
+cargo install --path apps/cli --bin codex-doctor --force
 ```
 
 After that, you can run:

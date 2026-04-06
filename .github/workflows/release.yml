@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release-assets:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            asset_name: codex-doctor-windows-x86_64.zip
+            cli_bin: target/release/codex-doctor.exe
+            gui_bin: target/release/gui.exe
+            shell: pwsh
+          - os: ubuntu-latest
+            asset_name: codex-doctor-linux-x86_64.tar.gz
+            cli_bin: target/release/codex-doctor
+            gui_bin: target/release/gui
+            shell: bash
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        run: |
+          cargo build -p cli --bin codex-doctor --release
+          cargo build -p gui --release
+        shell: ${{ matrix.shell }}
+
+      - name: Package Windows assets
+        if: matrix.os == 'windows-latest'
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          Copy-Item "${{ matrix.cli_bin }}" dist/
+          Copy-Item "${{ matrix.gui_bin }}" dist/
+          Copy-Item README.md dist/
+          Compress-Archive -Path dist/* -DestinationPath "${{ matrix.asset_name }}"
+        shell: pwsh
+
+      - name: Package Linux assets
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p dist
+          cp "${{ matrix.cli_bin }}" dist/
+          cp "${{ matrix.gui_bin }}" dist/
+          cp README.md dist/
+          tar -czf "${{ matrix.asset_name }}" -C dist .
+        shell: bash
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
