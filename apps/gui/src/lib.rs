@@ -70,20 +70,40 @@ pub struct CodexDoctorApp {
 
 impl CodexDoctorApp {
     pub fn new(codex_home: String) -> Self {
-        Self {
+        let mut app = Self {
             codex_home_input: codex_home,
             backup_keep_latest_input: "5".to_string(),
             active_tab: Some(ActiveTab::Dashboard),
             ..Self::default()
+        };
+
+        if !app.codex_home_input.trim().is_empty() {
+            if let Err(error) = app.refresh() {
+                app.last_error = Some(error);
+            }
         }
+
+        app
     }
 
     pub fn set_codex_home_input(&mut self, codex_home: String) {
         self.codex_home_input = codex_home;
     }
 
+    fn codex_home_path(&self) -> Result<PathBuf, String> {
+        let codex_home = PathBuf::from(&self.codex_home_input);
+        if !codex_home.exists() {
+            return Err(format!(
+                "Codex home does not exist: {}",
+                codex_home.display()
+            ));
+        }
+        Ok(codex_home)
+    }
+
     pub fn refresh(&mut self) -> Result<(), String> {
-        let dashboard = load_dashboard_view_model(Path::new(&self.codex_home_input))?;
+        let codex_home = self.codex_home_path()?;
+        let dashboard = load_dashboard_view_model(&codex_home)?;
         self.preview_summary.clear();
         self.last_error = None;
         self.dashboard = Some(dashboard);
@@ -103,7 +123,7 @@ impl CodexDoctorApp {
     }
 
     pub fn execute_repair(&mut self) -> Result<(), String> {
-        let codex_home = PathBuf::from(&self.codex_home_input);
+        let codex_home = self.codex_home_path()?;
         let scan_report = scan_codex_home(&codex_home)?;
         let diagnosis = diagnose(&scan_report);
         let plan = build_repair_plan(&scan_report, &diagnosis);
@@ -119,7 +139,7 @@ impl CodexDoctorApp {
     }
 
     pub fn load_backups(&mut self) -> Result<(), String> {
-        let codex_home = PathBuf::from(&self.codex_home_input);
+        let codex_home = self.codex_home_path()?;
         let backups_root = codex_home.join(".codex-doctor-backups");
         self.backups = list_backups(&backups_root)?;
         self.selected_backup = None;
@@ -127,7 +147,7 @@ impl CodexDoctorApp {
     }
 
     pub fn load_history(&mut self) -> Result<(), String> {
-        let codex_home = PathBuf::from(&self.codex_home_input);
+        let codex_home = self.codex_home_path()?;
         let history_dir = codex_home.join(".codex-doctor").join("history");
         self.history = list_repair_history(&history_dir)?;
         self.selected_history = None;
@@ -137,7 +157,7 @@ impl CodexDoctorApp {
     pub fn restore_selected_backup(&mut self) -> Result<(), String> {
         if let Some(idx) = self.selected_backup {
             if let Some(manifest) = self.backups.get(idx) {
-                let codex_home = PathBuf::from(&self.codex_home_input);
+                let codex_home = self.codex_home_path()?;
                 let backups_root = codex_home.join(".codex-doctor-backups");
                 let snapshot_dir = backups_root.join(&manifest.backup_id);
                 restore_backup(&snapshot_dir, &codex_home)?;
@@ -150,7 +170,7 @@ impl CodexDoctorApp {
     }
 
     pub fn prune_backups(&mut self, keep_latest: usize) -> Result<(), String> {
-        let codex_home = PathBuf::from(&self.codex_home_input);
+        let codex_home = self.codex_home_path()?;
         let backups_root = codex_home.join(".codex-doctor-backups");
         let report = prune_backups(&backups_root, keep_latest)?;
         self.load_backups()?;
