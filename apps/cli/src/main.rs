@@ -1,17 +1,26 @@
+mod output;
+
 use std::path::PathBuf;
 use std::process;
 
 use clap::{Args, Parser, Subcommand};
 use doctor_core::{
-    build_repair_plan, diagnose, execute_repair_plan, list_backups, prune_backups, restore_backup,
-    scan_codex_home, BackupManifest, BackupSnapshot, DiagnosisProblem, DiagnosisReport,
-    ProblemCode, ProblemSeverity, RepairAction, RepairExecutionEntry, RepairExecutionReport,
-    RepairPlan, RolloutRecord, ScanReport, SqliteThreadRecord, ThreadLocation,
+    build_repair_plan, diagnose, execute_repair_plan, list_backups, list_repair_history,
+    prune_backups, restore_backup, save_repair_history, scan_codex_home, BackupManifest,
+    BackupSnapshot, DiagnosisProblem, DiagnosisReport, ProblemCode, ProblemSeverity, RepairAction,
+    RepairExecutionEntry, RepairExecutionReport, RepairPlan, RolloutRecord, ScanReport,
+    SqliteThreadRecord, ThreadLocation,
 };
 use serde_json::{json, Value};
 
+use output::{
+    print_backup_list_human, print_diagnosis_report_human, print_repair_execution_human,
+    print_repair_history_human, print_scan_report_human,
+};
+
 #[derive(Parser)]
 #[command(name = "codex-doctor")]
+#[command(version, about = "Diagnose and repair local Codex state", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -26,6 +35,7 @@ enum Commands {
         #[command(subcommand)]
         command: BackupCommands,
     },
+    History(HistoryArgs),
 }
 
 #[derive(Args)]
@@ -54,6 +64,8 @@ struct RepairArgs {
     dry_run: bool,
     #[arg(long)]
     json: bool,
+    #[arg(long, default_value = "false")]
+    save_history: bool,
 }
 
 #[derive(Subcommand)]
@@ -91,6 +103,14 @@ struct BackupPruneArgs {
     json: bool,
 }
 
+#[derive(Args)]
+struct HistoryArgs {
+    #[arg(long)]
+    history_dir: PathBuf,
+    #[arg(long)]
+    json: bool,
+}
+
 fn main() {
     if let Err(error) = run() {
         eprintln!("{error}");
@@ -107,10 +127,7 @@ fn run() -> Result<(), String> {
             if args.json {
                 print_json(&scan_report_to_json(&report))?;
             } else {
-                println!(
-                    "{}",
-                    report.summary.active_rollout_count + report.summary.archived_rollout_count
-                );
+                print_scan_report_human(&report);
             }
         }
         Commands::Diagnose(args) => {
@@ -119,7 +136,7 @@ fn run() -> Result<(), String> {
             if args.json {
                 print_json(&diagnosis_to_json(&diagnosis))?;
             } else {
-                println!("{}", diagnosis.problems.len());
+                print_diagnosis_report_human(&diagnosis.problems);
             }
         }
         Commands::Repair(args) => {
@@ -128,10 +145,29 @@ fn run() -> Result<(), String> {
             let plan = build_repair_plan(&report, &diagnosis);
             let execution_report =
                 execute_repair_plan(&args.codex_home, &args.backups_root, &plan, args.dry_run)?;
+
+            if args.save_history && !args.dry_run {
+                let history_dir = args.codex_home.join(".codex-doctor").join("history");
+                save_repair_history(
+                    &history_dir,
+                    &args.codex_home,
+                    &execution_report,
+                    &plan.actions,
+                )?;
+            }
+
             if args.json {
                 print_json(&repair_execution_report_to_json(&execution_report, &plan))?;
             } else {
-                println!("{}", plan.actions.len());
+                print_repair_execution_human(
+                    execution_report.applied.len(),
+                    execution_report.skipped.len(),
+                    execution_report.failed.len(),
+                    execution_report
+                        .backup
+                        .as_ref()
+                        .map(|b| b.backup_id.as_str()),
+                );
             }
         }
         Commands::Backup { command } => match command {
@@ -142,7 +178,7 @@ fn run() -> Result<(), String> {
                         manifests.iter().map(backup_manifest_to_json).collect(),
                     ))?;
                 } else {
-                    println!("{}", manifests.len());
+                    print_backup_list_human(&manifests);
                 }
             }
             BackupCommands::Restore(args) => {
@@ -154,7 +190,7 @@ fn run() -> Result<(), String> {
                         "restored": true,
                     }))?;
                 } else {
-                    println!("restored");
+                    println!("✅ Backup restored successfully!");
                 }
             }
             BackupCommands::Prune(args) => {
@@ -164,10 +200,20 @@ fn run() -> Result<(), String> {
                         "removed_backup_ids": report.removed_backup_ids,
                     }))?;
                 } else {
-                    println!("{}", report.removed_backup_ids.len());
+                    println!("🗑️  Pruned {} backup(s)", report.removed_backup_ids.len());
                 }
             }
         },
+        Commands::History(args) => {
+            let entries = list_repair_history(&args.history_dir)?;
+            if args.json {
+                print_json(&Value::Array(
+                    entries.iter().map(repair_history_entry_to_json).collect(),
+                ))?;
+            } else {
+                print_repair_history_human(&entries);
+            }
+        }
     }
 
     Ok(())
@@ -323,6 +369,27 @@ fn repair_action_to_json(action: &RepairAction) -> Value {
             "provider": provider,
         }),
     }
+}
+
+fn repair_history_entry_to_json(entry: &doctor_core::RepairHistoryEntry) -> Value {
+    json!({
+        "timestamp": entry.timestamp,
+        "codex_home": entry.codex_home,
+        "actions_applied": entry.actions_applied,
+        "actions_skipped": entry.actions_skipped,
+        "actions_failed": entry.actions_failed,
+        "backup_id": entry.backup_id,
+        "actions": entry.actions.iter().map(|a| json!({
+            "action_type": a.action_type,
+            "thread_id": a.thread_id,
+            "details": a.details,
+            "status": match a.status {
+                doctor_core::ActionStatus::Applied => "applied",
+                doctor_core::ActionStatus::Skipped => "skipped",
+                doctor_core::ActionStatus::Failed => "failed",
+            }
+        })).collect::<Vec<_>>(),
+    })
 }
 
 fn problem_code_to_str(code: &ProblemCode) -> &'static str {

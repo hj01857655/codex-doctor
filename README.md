@@ -62,6 +62,30 @@ codex-doctor repair --codex-home ~/.codex --backups-root ~/.codex-backups
 
 **Important:** A backup is automatically created before any repair operation.
 
+To also persist a structured repair history entry:
+
+```bash
+codex-doctor repair --codex-home ~/.codex --backups-root ~/.codex-backups --save-history
+```
+
+Repair history is stored under:
+
+```text
+<codex-home>/.codex-doctor/history
+```
+
+List saved repair history as JSON:
+
+```bash
+codex-doctor history --history-dir ~/.codex/.codex-doctor/history --json
+```
+
+List saved repair history in human-readable form:
+
+```bash
+codex-doctor history --history-dir ~/.codex/.codex-doctor/history
+```
+
 ### Backup management
 
 List backups:
@@ -97,6 +121,16 @@ The GUI provides:
 - Repair plan preview
 - One-click repair execution
 - Backup management
+- Repair history browsing
+
+The GUI navigation currently includes:
+- `Dashboard` for scan results, diagnosis, and repair preview
+- `Backups` for listing and restoring backups
+- `History` for browsing saved repair executions
+
+When a repair is executed from the GUI, it writes:
+- backups to `<codex-home>/.codex-doctor-backups`
+- repair history to `<codex-home>/.codex-doctor/history`
 
 ## Supported Repair Types
 

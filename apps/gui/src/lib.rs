@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use doctor_core::{
-    build_repair_plan, diagnose, execute_repair_plan, scan_codex_home, DiagnosisProblem,
-    RepairExecutionReport, ScanReport,
+    build_repair_plan, diagnose, execute_repair_plan, list_backups, list_repair_history,
+    restore_backup, save_repair_history, scan_codex_home, BackupManifest, DiagnosisProblem,
+    RepairActionRecord, RepairExecutionReport, RepairHistoryEntry, ScanReport,
 };
 use eframe::egui;
 
@@ -44,6 +45,14 @@ pub fn load_dashboard_view_model(codex_home: &Path) -> Result<DashboardViewModel
     })
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum ActiveTab {
+    #[default]
+    Dashboard,
+    Backups,
+    History,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct CodexDoctorApp {
     pub codex_home_input: String,
@@ -51,12 +60,18 @@ pub struct CodexDoctorApp {
     pub last_error: Option<String>,
     pub preview_summary: String,
     pub status_message: String,
+    pub active_tab: Option<ActiveTab>,
+    pub backups: Vec<BackupManifest>,
+    pub history: Vec<RepairHistoryEntry>,
+    pub selected_backup: Option<usize>,
+    pub selected_history: Option<usize>,
 }
 
 impl CodexDoctorApp {
     pub fn new(codex_home: String) -> Self {
         Self {
             codex_home_input: codex_home,
+            active_tab: Some(ActiveTab::Dashboard),
             ..Self::default()
         }
     }
@@ -92,11 +107,44 @@ impl CodexDoctorApp {
         let plan = build_repair_plan(&scan_report, &diagnosis);
         let backups_root = codex_home.join(".codex-doctor-backups");
         let execution = execute_repair_plan(&codex_home, &backups_root, &plan, false)?;
+        let history_dir = codex_home.join(".codex-doctor").join("history");
+        save_repair_history(&history_dir, &codex_home, &execution, &plan.actions)?;
 
         self.status_message = execution_status(&execution);
         self.last_error = None;
         self.refresh()?;
         Ok(())
+    }
+
+    pub fn load_backups(&mut self) -> Result<(), String> {
+        let codex_home = PathBuf::from(&self.codex_home_input);
+        let backups_root = codex_home.join(".codex-doctor-backups");
+        self.backups = list_backups(&backups_root)?;
+        self.selected_backup = None;
+        Ok(())
+    }
+
+    pub fn load_history(&mut self) -> Result<(), String> {
+        let codex_home = PathBuf::from(&self.codex_home_input);
+        let history_dir = codex_home.join(".codex-doctor").join("history");
+        self.history = list_repair_history(&history_dir)?;
+        self.selected_history = None;
+        Ok(())
+    }
+
+    pub fn restore_selected_backup(&mut self) -> Result<(), String> {
+        if let Some(idx) = self.selected_backup {
+            if let Some(manifest) = self.backups.get(idx) {
+                let codex_home = PathBuf::from(&self.codex_home_input);
+                let backups_root = codex_home.join(".codex-doctor-backups");
+                let snapshot_dir = backups_root.join(&manifest.backup_id);
+                restore_backup(&snapshot_dir, &codex_home)?;
+                self.status_message = format!("Restored backup: {}", manifest.backup_id);
+                self.refresh()?;
+                return Ok(());
+            }
+        }
+        Err("No backup selected".to_string())
     }
 
     pub fn preview_actions(&self) -> &[String] {
@@ -117,32 +165,89 @@ impl CodexDoctorApp {
 
 impl eframe::App for CodexDoctorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Codex Doctor");
-            ui.label("Diagnose and repair local Codex state.");
-
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label("Codex home");
-                ui.text_edit_singleline(&mut self.codex_home_input);
-                if ui.button("Refresh").clicked() {
-                    if let Err(error) = self.refresh() {
-                        self.last_error = Some(error);
-                        self.dashboard = None;
-                        self.preview_summary.clear();
-                    }
+                ui.heading("🩺 Codex Doctor");
+                ui.separator();
+                ui.label("Diagnose and repair local Codex state");
+            });
+        });
+
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                if !self.status_message.is_empty() {
+                    ui.label(&self.status_message);
+                }
+                if let Some(error) = &self.last_error {
+                    ui.colored_label(egui::Color32::RED, error);
                 }
             });
+        });
 
-            if !self.status_message.is_empty() {
-                ui.label(&self.status_message);
-            }
+        egui::SidePanel::left("side_panel").show(ctx, |ui| {
+            ui.heading("Settings");
+            ui.separator();
 
-            if let Some(error) = &self.last_error {
-                ui.colored_label(egui::Color32::RED, error);
+            ui.label("Codex home:");
+            ui.text_edit_singleline(&mut self.codex_home_input);
+
+            if ui.button("🔄 Refresh").clicked() {
+                if let Err(error) = self.refresh() {
+                    self.last_error = Some(error);
+                    self.dashboard = None;
+                    self.preview_summary.clear();
+                }
             }
 
             ui.separator();
+            ui.heading("Navigation");
+
+            if ui
+                .selectable_label(
+                    self.active_tab == Some(ActiveTab::Dashboard),
+                    "📊 Dashboard",
+                )
+                .clicked()
+            {
+                self.active_tab = Some(ActiveTab::Dashboard);
+            }
+
+            if ui
+                .selectable_label(self.active_tab == Some(ActiveTab::Backups), "💾 Backups")
+                .clicked()
+            {
+                self.active_tab = Some(ActiveTab::Backups);
+                if let Err(error) = self.load_backups() {
+                    self.last_error = Some(error);
+                }
+            }
+
+            if ui
+                .selectable_label(self.active_tab == Some(ActiveTab::History), "📜 History")
+                .clicked()
+            {
+                self.active_tab = Some(ActiveTab::History);
+                if let Err(error) = self.load_history() {
+                    self.last_error = Some(error);
+                }
+            }
+        });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            match self.active_tab.as_ref().unwrap_or(&ActiveTab::Dashboard) {
+                ActiveTab::Dashboard => self.render_dashboard_tab(ui),
+                ActiveTab::Backups => self.render_backups_tab(ui),
+                ActiveTab::History => self.render_history_tab(ui),
+            }
+        });
+    }
+}
+
+impl CodexDoctorApp {
+    fn render_dashboard_tab(&mut self, ui: &mut egui::Ui) {
+        egui::ScrollArea::vertical().show(ui, |ui| {
             ui.heading("Summary");
+
             if let Some(dashboard) = &self.dashboard {
                 egui::Grid::new("summary-grid")
                     .striped(true)
@@ -156,14 +261,23 @@ impl eframe::App for CodexDoctorApp {
 
                 ui.separator();
                 ui.heading("Problems");
+
                 if dashboard.problems.is_empty() {
-                    ui.label("No problems detected.");
+                    ui.colored_label(egui::Color32::GREEN, "✅ No problems detected.");
                 } else {
                     for problem in &dashboard.problems {
                         ui.group(|ui| {
-                            ui.label(format!("{} ({})", problem.code, problem.severity));
+                            let color = match problem.severity.as_str() {
+                                "error" => egui::Color32::RED,
+                                "warning" => egui::Color32::YELLOW,
+                                _ => egui::Color32::LIGHT_BLUE,
+                            };
+                            ui.colored_label(
+                                color,
+                                format!("{} ({})", problem.code, problem.severity),
+                            );
                             for evidence in &problem.evidence {
-                                ui.label(evidence);
+                                ui.label(format!("  • {}", evidence));
                             }
                         });
                     }
@@ -171,7 +285,11 @@ impl eframe::App for CodexDoctorApp {
 
                 ui.separator();
                 ui.heading("Repair plan");
-                ui.label(&self.preview_summary);
+
+                if !self.preview_summary.is_empty() {
+                    ui.label(&self.preview_summary);
+                }
+
                 let has_actions = !dashboard.preview_actions.is_empty();
                 ui.horizontal(|ui| {
                     if ui.button(self.preview_repair_label()).clicked() {
@@ -193,6 +311,111 @@ impl eframe::App for CodexDoctorApp {
             }
         });
     }
+
+    fn render_backups_tab(&mut self, ui: &mut egui::Ui) {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.heading("Backups");
+
+            if self.backups.is_empty() {
+                ui.label("No backups found.");
+            } else {
+                ui.label(format!("Found {} backup(s)", self.backups.len()));
+                ui.separator();
+
+                for (i, manifest) in self.backups.iter().enumerate() {
+                    let is_selected = self.selected_backup == Some(i);
+                    if ui
+                        .selectable_label(is_selected, format!("Backup: {}", manifest.backup_id))
+                        .clicked()
+                    {
+                        self.selected_backup = Some(i);
+                    }
+
+                    if is_selected {
+                        ui.indent(format!("backup_details_{}", i), |ui| {
+                            ui.label(format!("Source: {}", manifest.source_codex_home.display()));
+                            ui.label(format!(
+                                "Created: {}",
+                                format_timestamp_ms(manifest.created_at_unix_ms)
+                            ));
+                        });
+                    }
+                }
+
+                ui.separator();
+                if ui
+                    .add_enabled(
+                        self.selected_backup.is_some(),
+                        egui::Button::new("🔄 Restore Selected"),
+                    )
+                    .clicked()
+                {
+                    if let Err(error) = self.restore_selected_backup() {
+                        self.last_error = Some(error);
+                    }
+                }
+            }
+        });
+    }
+
+    fn render_history_tab(&mut self, ui: &mut egui::Ui) {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.heading("Repair History");
+
+            if self.history.is_empty() {
+                ui.label("No repair history found.");
+            } else {
+                ui.label(format!("Found {} repair(s)", self.history.len()));
+                ui.separator();
+
+                for (i, entry) in self.history.iter().enumerate() {
+                    let is_selected = self.selected_history == Some(i);
+                    if ui
+                        .selectable_label(
+                            is_selected,
+                            format!("Repair: {}", format_timestamp_sec(entry.timestamp)),
+                        )
+                        .clicked()
+                    {
+                        self.selected_history = Some(i);
+                    }
+
+                    if is_selected {
+                        ui.indent(format!("history_details_{}", i), |ui| {
+                            ui.label(format!("Codex home: {}", entry.codex_home.display()));
+                            ui.label(format!(
+                                "Actions: {} applied, {} skipped, {} failed",
+                                entry.actions_applied, entry.actions_skipped, entry.actions_failed
+                            ));
+                            if let Some(backup_id) = &entry.backup_id {
+                                ui.label(format!("Backup: {}", backup_id));
+                            }
+
+                            if !entry.actions.is_empty() {
+                                ui.separator();
+                                ui.label("Actions:");
+                                for action in &entry.actions {
+                                    render_action_record(ui, action);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    }
+}
+
+fn render_action_record(ui: &mut egui::Ui, action: &RepairActionRecord) {
+    let (icon, color) = match action.status {
+        doctor_core::ActionStatus::Applied => ("✓", egui::Color32::GREEN),
+        doctor_core::ActionStatus::Skipped => ("○", egui::Color32::GRAY),
+        doctor_core::ActionStatus::Failed => ("✗", egui::Color32::RED),
+    };
+    ui.horizontal(|ui| {
+        ui.colored_label(color, icon);
+        ui.label(format!("{} - {}", action.action_type, action.details));
+    });
 }
 
 pub fn render_dashboard_text(view_model: &DashboardViewModel) -> String {
@@ -327,4 +550,20 @@ fn action_id(action: &doctor_core::RepairAction) -> String {
             "patch_config_model_provider".to_string()
         }
     }
+}
+
+fn format_timestamp_ms(millis: u128) -> String {
+    use std::time::{Duration, UNIX_EPOCH};
+    let duration = Duration::from_millis(millis as u64);
+    let datetime = UNIX_EPOCH + duration;
+    let datetime: chrono::DateTime<chrono::Local> = datetime.into();
+    datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+}
+
+fn format_timestamp_sec(secs: i64) -> String {
+    use std::time::{Duration, UNIX_EPOCH};
+    let duration = Duration::from_secs(secs as u64);
+    let datetime = UNIX_EPOCH + duration;
+    let datetime: chrono::DateTime<chrono::Local> = datetime.into();
+    datetime.format("%Y-%m-%d %H:%M:%S").to_string()
 }

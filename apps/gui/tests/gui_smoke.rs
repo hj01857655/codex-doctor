@@ -209,3 +209,105 @@ fn execute_action_runs_repair_and_updates_status() {
         .all(|problem| problem.code != "missing_root_model_provider"));
     assert_eq!(app.execute_repair_label(), "Execute repair");
 }
+
+#[test]
+fn load_backups_populates_backup_selection_state() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+    app.load_backups().expect("load backups");
+
+    assert!(!app.backups.is_empty());
+    assert_eq!(app.selected_backup, None);
+}
+
+#[test]
+fn load_history_reads_saved_repair_entries() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+    app.load_history().expect("load history");
+
+    assert!(!app.history.is_empty());
+    assert_eq!(app.selected_history, None);
+    assert!(app.history[0].actions_applied >= 1);
+}
+
+#[test]
+fn restore_selected_backup_restores_previous_config_state() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+    app.load_backups().expect("load backups");
+    app.selected_backup = Some(0);
+
+    fs::write(
+        codex_home.path().join("config.toml"),
+        "model_provider = \"broken\"\n",
+    )
+    .expect("mutate config after backup");
+
+    app.restore_selected_backup()
+        .expect("restore selected backup");
+
+    let restored = fs::read_to_string(codex_home.path().join("config.toml")).expect("read config");
+    assert!(!restored.contains("model_provider = \"broken\""));
+    assert!(app.status_message.contains("Restored backup:"));
+    assert!(app
+        .dashboard
+        .as_ref()
+        .expect("dashboard after restore")
+        .problems
+        .iter()
+        .any(|problem| problem.code == "missing_root_model_provider"));
+}
+
+#[test]
+fn load_backups_handles_missing_directory_gracefully() {
+    let codex_home = prepare_codex_home();
+    let backups_dir = codex_home.path().join(".codex-doctor-backups");
+    if backups_dir.exists() {
+        fs::remove_dir_all(&backups_dir).expect("remove backups dir");
+    }
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.load_backups().expect("load backups");
+
+    assert!(app.backups.is_empty());
+    assert_eq!(app.selected_backup, None);
+    assert!(app.last_error.is_none());
+}
+
+#[test]
+fn load_history_handles_missing_history_gracefully() {
+    let codex_home = prepare_codex_home();
+    let history_dir = codex_home.path().join(".codex-doctor").join("history");
+    if history_dir.exists() {
+        fs::remove_dir_all(&history_dir).expect("remove history dir");
+    }
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.load_history().expect("load history");
+
+    assert!(app.history.is_empty());
+    assert_eq!(app.selected_history, None);
+    assert!(app.last_error.is_none());
+}
+
+#[test]
+fn restore_selected_backup_without_selection_reports_error() {
+    let codex_home = prepare_codex_home();
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+
+    let error = app
+        .restore_selected_backup()
+        .expect_err("restore should fail without selection");
+
+    assert!(error.contains("No backup selected"));
+}

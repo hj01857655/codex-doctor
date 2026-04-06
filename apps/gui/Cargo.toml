@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 doctor-core = { path = "../../crates/doctor-core" }
 eframe = { version = "0.31", default-features = true }
+chrono = "0.4"
 
 [dev-dependencies]
 rusqlite = { version = "0.32", features = ["bundled"] }

@@ -1,6 +1,7 @@
 mod backup;
 mod config;
 mod diagnose;
+mod history;
 mod layout;
 mod model;
 mod plan;
@@ -15,6 +16,9 @@ pub use backup::{
 };
 pub use config::{patch_root_model_provider, read_root_config_snapshot};
 pub use diagnose::{diagnose, DiagnosisProblem, DiagnosisReport, ProblemCode, ProblemSeverity};
+pub use history::{
+    list_repair_history, save_repair_history, ActionStatus, RepairActionRecord, RepairHistoryEntry,
+};
 pub use layout::CodexLayout;
 pub use model::{RolloutRecord, RolloutSessionMeta, RootConfigSnapshot, ThreadLocation};
 pub use plan::{build_repair_plan, RepairAction, RepairPlan};
