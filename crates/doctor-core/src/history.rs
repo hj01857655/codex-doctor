@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{RepairAction, RepairExecutionReport};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RepairHistoryEntry {
     pub timestamp: i64,
     pub codex_home: PathBuf,
@@ -17,7 +17,7 @@ pub struct RepairHistoryEntry {
     pub actions: Vec<RepairActionRecord>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RepairActionRecord {
     pub action_type: String,
     pub thread_id: Option<String>,
@@ -25,7 +25,7 @@ pub struct RepairActionRecord {
     pub status: ActionStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ActionStatus {
     Applied,
     Skipped,

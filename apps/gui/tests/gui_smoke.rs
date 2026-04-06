@@ -233,6 +233,25 @@ fn execute_action_runs_repair_and_updates_status() {
     assert_eq!(app.execute_repair_label(), "Execute repair");
     assert!(!app.backups.is_empty());
     assert!(!app.history.is_empty());
+    assert!(!app.last_execution.is_empty());
+    assert!(app
+        .last_execution
+        .iter()
+        .any(|action| matches!(action.status, doctor_core::ActionStatus::Applied)));
+}
+
+#[test]
+fn refresh_keeps_last_execution_details() {
+    let codex_home = prepare_codex_home();
+    fs::write(codex_home.path().join("config.toml"), "").expect("clear config");
+
+    let mut app = CodexDoctorApp::new(codex_home.path().display().to_string());
+    app.execute_repair().expect("execute repair");
+    let before = app.last_execution.clone();
+
+    app.refresh().expect("refresh dashboard");
+
+    assert_eq!(app.last_execution, before);
 }
 
 #[test]

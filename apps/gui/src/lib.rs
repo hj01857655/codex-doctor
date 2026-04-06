@@ -60,6 +60,7 @@ pub struct CodexDoctorApp {
     pub last_error: Option<String>,
     pub preview_summary: String,
     pub status_message: String,
+    pub last_execution: Vec<RepairActionRecord>,
     pub backup_keep_latest_input: String,
     pub active_tab: Option<ActiveTab>,
     pub backups: Vec<BackupManifest>,
@@ -133,6 +134,7 @@ impl CodexDoctorApp {
         save_repair_history(&history_dir, &codex_home, &execution, &plan.actions)?;
 
         self.status_message = execution_status(&execution);
+        self.last_execution = collect_execution_actions(&execution);
         self.last_error = None;
         self.refresh()?;
         self.load_backups()?;
@@ -351,6 +353,14 @@ impl CodexDoctorApp {
                         }
                     }
                 });
+
+                if !self.last_execution.is_empty() {
+                    ui.separator();
+                    ui.heading("Last execution");
+                    for action in &self.last_execution {
+                        render_action_record(ui, action);
+                    }
+                }
             } else {
                 ui.label("Press Refresh to load the current Codex home.");
             }
@@ -532,6 +542,37 @@ fn render_preview_summary(preview_actions: &[String]) -> String {
     }
 }
 
+fn collect_execution_actions(report: &RepairExecutionReport) -> Vec<RepairActionRecord> {
+    let mut actions = Vec::new();
+
+    for entry in &report.applied {
+        actions.push(RepairActionRecord {
+            action_type: action_id(&entry.action),
+            thread_id: action_thread_id(&entry.action),
+            details: entry.message.clone(),
+            status: doctor_core::ActionStatus::Applied,
+        });
+    }
+    for entry in &report.skipped {
+        actions.push(RepairActionRecord {
+            action_type: action_id(&entry.action),
+            thread_id: action_thread_id(&entry.action),
+            details: entry.message.clone(),
+            status: doctor_core::ActionStatus::Skipped,
+        });
+    }
+    for entry in &report.failed {
+        actions.push(RepairActionRecord {
+            action_type: action_id(&entry.action),
+            thread_id: action_thread_id(&entry.action),
+            details: entry.message.clone(),
+            status: doctor_core::ActionStatus::Failed,
+        });
+    }
+
+    actions
+}
+
 fn build_summary_items(
     scan_report: &ScanReport,
     problem_count: usize,
@@ -608,6 +649,19 @@ fn action_id(action: &doctor_core::RepairAction) -> String {
         doctor_core::RepairAction::PatchConfigModelProvider { .. } => {
             "patch_config_model_provider".to_string()
         }
+    }
+}
+
+fn action_thread_id(action: &doctor_core::RepairAction) -> Option<String> {
+    match action {
+        doctor_core::RepairAction::RebuildMissingIndexFromRollout { thread_id, .. }
+        | doctor_core::RepairAction::UpsertSqliteThreadMetadata { thread_id }
+        | doctor_core::RepairAction::MoveRolloutToArchive { thread_id }
+        | doctor_core::RepairAction::MoveRolloutToSessions { thread_id }
+        | doctor_core::RepairAction::RewriteRolloutSessionMeta { thread_id, .. } => {
+            Some(thread_id.clone())
+        }
+        doctor_core::RepairAction::PatchConfigModelProvider { .. } => None,
     }
 }
 
