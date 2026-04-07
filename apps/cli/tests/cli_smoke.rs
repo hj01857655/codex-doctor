@@ -429,6 +429,7 @@ fn resume_doctor_json_reports_hidden_candidate_and_command() {
         codex_home.path().to_str().expect("codex home path"),
         "--current-cwd",
         "/workspace/active",
+        "--all",
         "--json",
     ]);
 
@@ -462,7 +463,7 @@ fn resume_doctor_text_reports_visibility_and_blockers() {
     );
 
     assert!(output.contains("Codex Doctor - Resume Doctor"));
-    assert!(output.contains("No current-cwd rollout candidates found"));
+    assert!(output.contains("No default-visible current-cwd sessions found"));
     assert!(output.contains("Use --all"));
 }
 

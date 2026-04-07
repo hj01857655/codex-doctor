@@ -220,37 +220,28 @@ pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
         "Root provider: {}",
         report.root_provider.as_deref().unwrap_or("(not set)")
     );
+    println!("Scope: current cwd");
     println!("Candidates (newest first): {}", report.candidates.len());
     println!();
 
     if report.candidates.is_empty() {
         println!(
-            "ℹ️  No current-cwd rollout candidates found. Use --all to inspect other directories."
+            "ℹ️  No default-visible current-cwd sessions found. Use --all to inspect hidden or other-directory sessions."
         );
         println!();
         return;
     }
 
     println!(
-        "{:<3} {:<4} {:<20} {:<10} {:<8} {:<5} {:<12} Why hidden",
-        "#", "Pick", "Updated", "Provider", "Loc", "CWD", "Thread"
+        "{:<3} {:<20} {:<10} {:<8} {:<12} Why hidden",
+        "#", "Updated", "Provider", "Loc", "Thread"
     );
     println!(
-        "{:-<3} {:-<4} {:-<20} {:-<10} {:-<8} {:-<5} {:-<12} {:-<1}",
-        "", "", "", "", "", "", "", ""
+        "{:-<3} {:-<20} {:-<10} {:-<8} {:-<12} {:-<1}",
+        "", "", "", "", "", ""
     );
 
     for (index, candidate) in report.candidates.iter().enumerate() {
-        let picker = if candidate.default_picker_visible {
-            "yes"
-        } else {
-            "no"
-        };
-        let cwd_match = if candidate.cwd == report.current_cwd {
-            "yes"
-        } else {
-            "no"
-        };
         let location = match candidate.location {
             doctor_core::ThreadLocation::Active => "active",
             doctor_core::ThreadLocation::Archived => "archived",
@@ -262,13 +253,11 @@ pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
         };
 
         println!(
-            "{:<3} {:<4} {:<20} {:<10} {:<8} {:<5} {:<12} {}",
+            "{:<3} {:<20} {:<10} {:<8} {:<12} {}",
             index + 1,
-            picker,
-            truncate_cell(&candidate.timestamp, 20),
+            format_resume_timestamp(&candidate.timestamp),
             truncate_cell(candidate.provider.as_deref().unwrap_or("(unknown)"), 10),
             location,
-            cwd_match,
             truncate_cell(&candidate.thread_id, 12),
             truncate_cell(&hidden_reason, 48)
         );
@@ -314,6 +303,29 @@ fn truncate_cell(value: &str, max_chars: usize) -> String {
         "…".to_string()
     } else {
         format!("{}…", chars[..max_chars - 1].iter().collect::<String>())
+    }
+}
+
+fn format_resume_timestamp(timestamp: &str) -> String {
+    let parsed = chrono::DateTime::parse_from_rfc3339(timestamp)
+        .map(|dt| dt.with_timezone(&chrono::Local))
+        .ok();
+    let Some(dt) = parsed else {
+        return truncate_cell(timestamp, 20);
+    };
+
+    let now = chrono::Local::now();
+    let delta = now.signed_duration_since(dt);
+    if delta.num_minutes() < 1 {
+        "just now".to_string()
+    } else if delta.num_hours() < 1 {
+        format!("{} min ago", delta.num_minutes())
+    } else if delta.num_days() < 1 {
+        format!("{} hr ago", delta.num_hours())
+    } else if delta.num_days() < 7 {
+        format!("{} day ago", delta.num_days())
+    } else {
+        dt.format("%m-%d %H:%M").to_string()
     }
 }
 

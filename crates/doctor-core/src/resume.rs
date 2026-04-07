@@ -112,7 +112,11 @@ pub fn scoped_resume_candidates(
         ResumeCandidateScope::CurrentCwdOnly => report
             .candidates
             .iter()
-            .filter(|candidate| candidate.cwd == report.current_cwd)
+            .filter(|candidate| {
+                candidate.cwd == report.current_cwd
+                    && candidate.default_picker_visible
+                    && candidate.direct_resume_command.is_some()
+            })
             .cloned()
             .collect(),
     }
