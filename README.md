@@ -9,7 +9,7 @@ A cross-platform CLI and GUI tool for diagnosing and repairing local Codex state
 - **What is covered today**:
   - CLI: `scan`, `diagnose`, `repair` (dry-run/main plus `--save-history`), `history`, `backup list/restore/prune` in both JSON and human-readable modes.
   - GUI: Dashboard scan/preview/execute flows, Backups tab (list + restore), History tab (list + detail), and guards for empty/no-selection states.
-  - Core: repair history persistence, backup manifest snapshots, and extended test coverage across repair/diagnosis/backup/history pipelines.
+  - Core: repair history persistence, backup manifest snapshots, `history.jsonl` / `logs_2.sqlite` state visibility, and extended test coverage across repair/diagnosis/backup/history pipelines.
 - **Verification**: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test` all pass on current tree.
 
 ## What is codex-doctor?
@@ -86,6 +86,12 @@ codex-doctor scan --codex-home ~/.codex
 ```bash
 codex-doctor scan --codex-home ~/.codex
 ```
+
+The scan summary reports whether these local state surfaces are present/readable:
+- `config.toml`
+- `state_5.sqlite`
+- `logs_2.sqlite`
+- `history.jsonl`
 
 With JSON output:
 ```bash
@@ -209,6 +215,8 @@ When a repair is executed from the GUI, it writes:
 | Provider mismatch | Rewrite rollout and SQLite metadata |
 | Archived state mismatch | Move rollout to correct location |
 | Missing root model provider | Patch config.toml |
+| Missing / unreadable `history.jsonl` | Diagnose and report local history state |
+| Missing / unreadable `logs_2.sqlite` | Diagnose and report logs database state |
 
 ## Safety Model
 
@@ -262,6 +270,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 - Does not repair corrupted SQLite databases (only metadata mismatches)
 - Requires manual intervention for severely corrupted rollout files
 - Cannot repair while Codex is actively using the database
+- Lock/busy failures are reported with retry guidance, but file/database ownership still needs to be resolved manually
 
 ## License
 
