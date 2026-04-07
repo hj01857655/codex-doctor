@@ -57,7 +57,7 @@
 
 说明：
 
-- `logs_2.sqlite` 与 `history.jsonl` 当前纳入扫描、诊断、备份与恢复
+- `logs_1.sqlite` 与 `history.jsonl` 当前纳入扫描、诊断、备份与恢复
 - 这两类问题当前只做诊断，不自动生成修复动作
 - 锁冲突当前在 repair / backup 阶段会转成 `skipped + retryable`
 
@@ -112,7 +112,7 @@ cargo test
 
 - 不处理认证、账号切换、登录态文件
 - 不修复损坏的 SQLite 数据库本体，只处理元数据一致性问题
-- 不改写 `history.jsonl` / `logs_2.sqlite` 语义内容，只做存在性/可读性诊断
+- 不改写 `history.jsonl` / `logs_1.sqlite` 语义内容，只做存在性/可读性诊断
 - release workflow 当前产物命名以 `x86_64` 为主，尚未扩展到更多架构矩阵
 - GUI 仍是核心能力的可视化壳层，不提供独立于 `doctor-core` 的额外修复策略
 

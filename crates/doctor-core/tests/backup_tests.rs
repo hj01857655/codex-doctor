@@ -61,7 +61,7 @@ fn create_backup_snapshot_copies_layout_and_writes_manifest() {
     assert!(snapshot.snapshot_dir.join("archived_sessions").exists());
     assert!(snapshot.snapshot_dir.join("history.jsonl").exists());
     assert!(snapshot.snapshot_dir.join("state_5.sqlite").exists());
-    assert!(snapshot.snapshot_dir.join("logs_2.sqlite").exists());
+    assert!(snapshot.snapshot_dir.join("logs_1.sqlite").exists());
 
     let backups = list_backups(backups_root.path()).expect("list backups");
     assert_eq!(backups.len(), 1);

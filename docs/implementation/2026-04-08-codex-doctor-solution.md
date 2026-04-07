@@ -7,7 +7,7 @@
 - `sessions/` 与 `archived_sessions/` 目录状态错位
 - rollout 文件与 `state_5.sqlite` 元数据不一致
 - `config.toml` 的 root provider 与本地状态不一致
-- `logs_2.sqlite` / `history.jsonl` 缺失或不可读
+- `logs_1.sqlite` / `history.jsonl` 缺失或不可读
 - SQLite / rollout 文件被占用，导致修复无法安全执行
 
 这些问题会表现为：
@@ -25,7 +25,7 @@
 - `sessions/`
 - `archived_sessions/`
 - `state_5.sqlite`
-- `logs_2.sqlite`
+- `logs_1.sqlite`
 - `history.jsonl`
 - `sqlite_home / CODEX_SQLITE_HOME` override
 
@@ -112,7 +112,7 @@ CLI 和 GUI 都只消费这层能力。
 - `sessions/`
 - `archived_sessions/`
 - `state_5.sqlite`
-- `logs_2.sqlite`
+- `logs_1.sqlite`
 - `history.jsonl`
 - `sqlite_home` override
 
@@ -210,7 +210,7 @@ cargo test
 
 - 不修复内容级数据库损坏
 - 不接管认证与账号问题
-- 不改写 `history.jsonl` / `logs_2.sqlite` 的业务语义
+- 不改写 `history.jsonl` / `logs_1.sqlite` 的业务语义
 - 更偏“本地状态 doctor”，不是完整 session 管理器
 
 ## 10. 当前产品定位

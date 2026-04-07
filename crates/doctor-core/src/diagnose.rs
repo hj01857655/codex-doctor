@@ -94,14 +94,14 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
         problems.push(DiagnosisProblem {
             code: ProblemCode::MissingLogsSqlite,
             severity: ProblemSeverity::Info,
-            evidence: vec!["logs_2.sqlite is missing from sqlite home".to_string()],
+            evidence: vec!["logs_1.sqlite is missing from sqlite home".to_string()],
             suggested_fix_ids: Vec::new(),
         });
     } else if !report.summary.logs_readable {
         problems.push(DiagnosisProblem {
             code: ProblemCode::UnreadableLogsSqlite,
             severity: ProblemSeverity::Warning,
-            evidence: vec!["logs_2.sqlite exists but could not be inspected".to_string()],
+            evidence: vec!["logs_1.sqlite exists but could not be inspected".to_string()],
             suggested_fix_ids: Vec::new(),
         });
     }

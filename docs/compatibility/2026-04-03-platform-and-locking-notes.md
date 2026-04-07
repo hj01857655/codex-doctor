@@ -8,7 +8,7 @@ This document describes platform-specific behaviors and file locking considerati
 
 ### SQLite Database Locking
 
-**Problem:** SQLite databases (`state_5.sqlite`, `logs_2.sqlite`) use file-based locking. If Codex or another process has the database open, repair operations will fail.
+**Problem:** SQLite databases (`state_5.sqlite`, `logs_1.sqlite`) use file-based locking. If Codex or another process has the database open, repair operations will fail.
 
 **Behavior by Platform:**
 

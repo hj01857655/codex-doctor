@@ -10,7 +10,7 @@ fn resolves_default_layout_from_codex_home() {
     assert!(layout.sessions_dir.ends_with("sessions"));
     assert!(layout.archived_sessions_dir.ends_with("archived_sessions"));
     assert!(layout.state_db.ends_with("state_5.sqlite"));
-    assert!(layout.logs_db.ends_with("logs_2.sqlite"));
+    assert!(layout.logs_db.ends_with("logs_1.sqlite"));
     assert!(layout.history_jsonl.ends_with("history.jsonl"));
     assert_eq!(layout.sqlite_home, PathBuf::from("/tmp/example/.codex"));
 }
@@ -29,6 +29,6 @@ fn respects_sqlite_home_override() {
     );
     assert_eq!(
         layout.logs_db,
-        PathBuf::from("/tmp/sqlite-home/logs_2.sqlite")
+        PathBuf::from("/tmp/sqlite-home/logs_1.sqlite")
     );
 }

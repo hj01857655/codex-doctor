@@ -39,7 +39,7 @@
 
 另有两个位置需要纳入设计：
 - `sqlite_home` / `CODEX_SQLITE_HOME` 的状态库重定向
-- `logs_2.sqlite` 的伴随备份策略
+- `logs_1.sqlite` 的伴随备份策略
 
 ## 4. 总体架构
 

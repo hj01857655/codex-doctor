@@ -11,7 +11,7 @@ A cross-platform CLI and GUI tool for diagnosing and repairing local Codex state
 - **What is covered today**:
   - CLI: `scan`, `diagnose`, `repair` (dry-run/main plus `--save-history`), `history`, `backup list/restore/prune` in both JSON and human-readable modes.
   - GUI: Dashboard scan/preview/execute flows, Backups tab (list + restore), History tab (list + detail), and guards for empty/no-selection states.
-  - Core: repair history persistence, backup manifest snapshots, `history.jsonl` / `logs_2.sqlite` state visibility, and extended test coverage across repair/diagnosis/backup/history pipelines.
+  - Core: repair history persistence, backup manifest snapshots, `history.jsonl` / `logs_1.sqlite` state visibility, and extended test coverage across repair/diagnosis/backup/history pipelines.
 - **Verification**: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test` all pass on current tree.
 
 ## What is codex-doctor?
@@ -92,7 +92,7 @@ codex-doctor scan --codex-home ~/.codex
 The scan summary reports whether these local state surfaces are present/readable:
 - `config.toml`
 - `state_5.sqlite`
-- `logs_2.sqlite`
+- `logs_1.sqlite`
 - `history.jsonl`
 - `sessions/` availability
 - locked database / locked rollout state
@@ -223,7 +223,7 @@ When a repair is executed from the GUI, it writes:
 | Unreadable `state_5.sqlite` | Diagnose and report unreadable SQLite state |
 | Locked database / rollout files | Detect lock conflicts and mark retryable execution paths |
 | Missing / unreadable `history.jsonl` | Diagnose and report local history state |
-| Missing / unreadable `logs_2.sqlite` | Diagnose and report logs database state |
+| Missing / unreadable `logs_1.sqlite` | Diagnose and report logs database state |
 
 ## Safety Model
 
@@ -247,7 +247,7 @@ When a repair is executed from the GUI, it writes:
 
 ### All Platforms
 - Backup directory should be on the same filesystem for best performance
-- Backups include: config.toml, sessions/, archived_sessions/, state_5.sqlite, logs_2.sqlite (if present), history.jsonl (if present)
+- Backups include: config.toml, sessions/, archived_sessions/, state_5.sqlite, logs_1.sqlite (if present), history.jsonl (if present)
 
 ## Architecture
 

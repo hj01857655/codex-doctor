@@ -117,7 +117,7 @@ Implement a layout struct with fields for:
 
 Bake in the confirmed defaults from the Codex source analysis:
 - state DB filename = `state_5.sqlite`
-- logs DB filename = `logs_2.sqlite`
+- logs DB filename = `logs_1.sqlite`
 - `CODEX_SQLITE_HOME` overrides state DB home when explicitly provided.
 
 **Step 4: Run tests to verify they pass**
@@ -375,7 +375,7 @@ Assert that backup creation copies:
 - `sessions/`
 - `archived_sessions/`
 - `state_5.sqlite`
-- optional `logs_2.sqlite`
+- optional `logs_1.sqlite`
 - optional `history.jsonl`
 
 Also assert prune keeps only the newest N backups.

@@ -2,7 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 const STATE_DB_FILENAME: &str = "state_5.sqlite";
-const LOGS_DB_FILENAME: &str = "logs_2.sqlite";
+const LOGS_DB_FILENAME: &str = "logs_1.sqlite";
 const SQLITE_HOME_ENV: &str = "CODEX_SQLITE_HOME";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

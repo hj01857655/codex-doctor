@@ -59,7 +59,7 @@ pub fn create_backup_snapshot_with_sqlite_home(
         &snapshot_dir.join("archived_sessions"),
     )?;
     copy_if_exists(&layout.state_db, &snapshot_dir.join("state_5.sqlite"))?;
-    copy_if_exists(&layout.logs_db, &snapshot_dir.join("logs_2.sqlite"))?;
+    copy_if_exists(&layout.logs_db, &snapshot_dir.join("logs_1.sqlite"))?;
     copy_if_exists(&layout.history_jsonl, &snapshot_dir.join("history.jsonl"))?;
 
     let manifest = BackupManifest {
@@ -135,7 +135,7 @@ pub fn restore_backup_with_sqlite_home(
         &snapshot_dir.join("state_5.sqlite"),
         &target_layout.state_db,
     )?;
-    restore_file(&snapshot_dir.join("logs_2.sqlite"), &target_layout.logs_db)?;
+    restore_file(&snapshot_dir.join("logs_1.sqlite"), &target_layout.logs_db)?;
     restore_file(
         &snapshot_dir.join("history.jsonl"),
         &target_layout.history_jsonl,
