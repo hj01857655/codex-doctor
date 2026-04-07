@@ -11,12 +11,11 @@ pub enum ProblemSeverity {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProblemCode {
-    MissingSessionsDirectory,
-    UnreadableSqliteDatabase,
-    LockedDatabase,
-    LockedRolloutFile,
     MissingSqliteThreadRow,
+    OrphanSqliteThreadRow,
     StaleSqliteRolloutPath,
+    DuplicateRolloutThreadId,
+    DuplicateActiveArchivedRollout,
     RolloutProviderMismatch,
     ArchivedStateMismatch,
     MissingRootModelProvider,
@@ -51,6 +50,19 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
         .iter()
         .map(|record| (record.rollout_path.as_path(), record))
         .collect();
+    let mut thread_counts: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut thread_locations: BTreeMap<&str, (bool, bool)> = BTreeMap::new();
+    for record in &report.rollout_records {
+        *thread_counts.entry(record.thread_id.as_str()).or_insert(0) += 1;
+        let entry = thread_locations
+            .entry(record.thread_id.as_str())
+            .or_insert((false, false));
+        if matches!(record.location, ThreadLocation::Archived) || record.archived {
+            entry.1 = true;
+        } else {
+            entry.0 = true;
+        }
+    }
 
     let mut problems = Vec::new();
 
@@ -63,45 +75,64 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
         });
     }
 
-    if !report.summary.sessions_present {
-        problems.push(DiagnosisProblem {
-            code: ProblemCode::MissingSessionsDirectory,
-            severity: ProblemSeverity::Warning,
-            evidence: vec!["sessions directory is missing from codex home".to_string()],
-            suggested_fix_ids: Vec::new(),
-        });
+    for sqlite_row in &report.sqlite_threads {
+        if !report
+            .rollout_records
+            .iter()
+            .any(|record| record.thread_id == sqlite_row.id)
+        {
+            problems.push(DiagnosisProblem {
+                code: ProblemCode::OrphanSqliteThreadRow,
+                severity: ProblemSeverity::Warning,
+                evidence: vec![format!(
+                    "sqlite row {} has no matching rollout record",
+                    sqlite_row.id
+                )],
+                suggested_fix_ids: Vec::new(),
+            });
+        }
     }
 
-    if report.summary.sqlite_present && !report.summary.sqlite_readable {
-        problems.push(DiagnosisProblem {
-            code: ProblemCode::UnreadableSqliteDatabase,
-            severity: ProblemSeverity::Warning,
-            evidence: vec!["state_5.sqlite exists but could not be read".to_string()],
-            suggested_fix_ids: Vec::new(),
-        });
+    for (thread_id, count) in &thread_counts {
+        if *count > 1 {
+            problems.push(DiagnosisProblem {
+                code: ProblemCode::DuplicateRolloutThreadId,
+                severity: ProblemSeverity::Warning,
+                evidence: vec![format!(
+                    "thread {} appears in {} rollout records",
+                    thread_id, count
+                )],
+                suggested_fix_ids: Vec::new(),
+            });
+        }
     }
 
-    if report.summary.sqlite_locked {
-        problems.push(DiagnosisProblem {
-            code: ProblemCode::LockedDatabase,
-            severity: ProblemSeverity::Warning,
-            evidence: vec!["state_5.sqlite is locked by another process".to_string()],
-            suggested_fix_ids: Vec::new(),
-        });
+    for (thread_id, (has_active, has_archived)) in &thread_locations {
+        if *has_active && *has_archived {
+            problems.push(DiagnosisProblem {
+                code: ProblemCode::DuplicateActiveArchivedRollout,
+                severity: ProblemSeverity::Warning,
+                evidence: vec![format!(
+                    "thread {} appears in both active and archived rollout locations",
+                    thread_id
+                )],
+                suggested_fix_ids: Vec::new(),
+            });
+        }
     }
 
     if !report.summary.logs_present {
         problems.push(DiagnosisProblem {
             code: ProblemCode::MissingLogsSqlite,
             severity: ProblemSeverity::Info,
-            evidence: vec!["logs_1.sqlite is missing from sqlite home".to_string()],
+            evidence: vec!["logs_2.sqlite is missing from sqlite home".to_string()],
             suggested_fix_ids: Vec::new(),
         });
     } else if !report.summary.logs_readable {
         problems.push(DiagnosisProblem {
             code: ProblemCode::UnreadableLogsSqlite,
             severity: ProblemSeverity::Warning,
-            evidence: vec!["logs_1.sqlite exists but could not be inspected".to_string()],
+            evidence: vec!["logs_2.sqlite exists but could not be inspected".to_string()],
             suggested_fix_ids: Vec::new(),
         });
     }
@@ -118,21 +149,6 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
             code: ProblemCode::UnreadableHistoryJsonl,
             severity: ProblemSeverity::Warning,
             evidence: vec!["history.jsonl exists but could not be read".to_string()],
-            suggested_fix_ids: Vec::new(),
-        });
-    }
-
-    if !report.locked_rollout_paths.is_empty() {
-        let mut evidence = report
-            .locked_rollout_paths
-            .iter()
-            .map(|path| format!("locked rollout file: {}", path.display()))
-            .collect::<Vec<_>>();
-        evidence.sort();
-        problems.push(DiagnosisProblem {
-            code: ProblemCode::LockedRolloutFile,
-            severity: ProblemSeverity::Warning,
-            evidence,
             suggested_fix_ids: Vec::new(),
         });
     }
