@@ -204,7 +204,7 @@ fn write_fake_codex_script(path: &Path, log_path: &Path) {
 
     #[cfg(not(windows))]
     let script = format!(
-        "#!/usr/bin/env sh\nprintf '%s\\n' \"$*\" > \"{}\"\n",
+        "#!/bin/sh\nprintf '%s\\n' \"$*\" > \"{}\"\n",
         log_path.display()
     );
 
