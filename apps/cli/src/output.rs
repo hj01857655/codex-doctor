@@ -220,9 +220,9 @@ pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
         "Root provider: {}",
         report.root_provider.as_deref().unwrap_or("(not set)")
     );
-    println!("Scope: current cwd");
-    println!("Candidates (newest first): {}", report.candidates.len());
-    println!();
+    println!("Scope: current cwd (use --all to include other directories)");
+    println!("Sort: Updated desc");
+    println!("Candidates: {}", report.candidates.len());
 
     if report.candidates.is_empty() {
         println!(

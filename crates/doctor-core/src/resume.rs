@@ -114,8 +114,8 @@ pub fn scoped_resume_candidates(
             .iter()
             .filter(|candidate| {
                 candidate.cwd == report.current_cwd
-                    && candidate.default_picker_visible
                     && candidate.direct_resume_command.is_some()
+                    && !matches!(candidate.location, ThreadLocation::Archived)
             })
             .cloned()
             .collect(),
@@ -134,7 +134,7 @@ pub fn best_resume_candidate_for_current_cwd(
 ) -> Option<&ResumeCandidate> {
     report.candidates.iter().find(|candidate| {
         candidate.cwd == report.current_cwd
-            && candidate.default_picker_visible
             && candidate.direct_resume_command.is_some()
+            && !matches!(candidate.location, ThreadLocation::Archived)
     })
 }
