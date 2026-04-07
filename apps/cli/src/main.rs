@@ -4,17 +4,17 @@ use std::env;
 use std::ffi::OsString;
 use std::io::{self, Write};
 use std::path::PathBuf;
-use std::process::{self, Command};
+use std::process::{self, Command, Stdio};
 
 use clap::{Args, Parser, Subcommand};
 use doctor_core::{
     best_resume_candidate_for_current_cwd, build_repair_plan, build_resume_doctor_report, diagnose,
     execute_repair_plan_with_sqlite_home, list_backups, list_repair_history, prune_backups,
     restore_backup_with_sqlite_home, save_repair_history, scan_codex_home_with_sqlite_home,
-    BackupManifest, BackupSnapshot, DiagnosisProblem, DiagnosisReport, ProblemCode,
-    ProblemSeverity, RepairAction, RepairExecutionEntry, RepairExecutionReport, RepairPlan,
-    ResumeBlocker, ResumeCandidate, ResumeDoctorReport, RolloutRecord, ScanReport,
-    SqliteThreadRecord, ThreadLocation,
+    scoped_resume_candidates, BackupManifest, BackupSnapshot, DiagnosisProblem, DiagnosisReport,
+    ProblemCode, ProblemSeverity, RepairAction, RepairExecutionEntry, RepairExecutionReport,
+    RepairPlan, ResumeBlocker, ResumeCandidate, ResumeCandidateScope, ResumeDoctorReport,
+    RolloutRecord, ScanReport, SqliteThreadRecord, ThreadLocation,
 };
 use serde_json::{json, Value};
 
@@ -72,6 +72,8 @@ struct ResumeDoctorArgs {
     sqlite_home: Option<PathBuf>,
     #[arg(long)]
     current_cwd: Option<PathBuf>,
+    #[arg(long)]
+    all: bool,
     #[arg(long)]
     json: bool,
 }
@@ -178,7 +180,13 @@ fn run() -> Result<(), String> {
                 Some(path) => path,
                 None => env::current_dir().map_err(|err| err.to_string())?,
             };
-            let resume_report = build_resume_doctor_report(&report, &current_cwd);
+            let mut resume_report = build_resume_doctor_report(&report, &current_cwd);
+            let scope = if args.all {
+                ResumeCandidateScope::All
+            } else {
+                ResumeCandidateScope::CurrentCwdOnly
+            };
+            resume_report.candidates = scoped_resume_candidates(&resume_report, scope);
             if args.json {
                 print_json(&resume_doctor_report_to_json(&resume_report))?;
             } else {
@@ -306,7 +314,40 @@ fn default_codex_home() -> Result<PathBuf, String> {
 }
 
 fn resolve_codex_binary() -> OsString {
-    env::var_os("CODEX_DOCTOR_CODEX_BIN").unwrap_or_else(|| OsString::from("codex"))
+    if let Some(explicit) = env::var_os("CODEX_DOCTOR_CODEX_BIN") {
+        return explicit;
+    }
+
+    if let Some(user_profile) = env::var_os("USERPROFILE") {
+        let candidate = PathBuf::from(user_profile)
+            .join("AppData")
+            .join("Roaming")
+            .join("npm")
+            .join("codex.cmd");
+        if candidate.is_file() {
+            return candidate.into_os_string();
+        }
+    }
+
+    if let Some(app_data) = env::var_os("APPDATA") {
+        let candidate = PathBuf::from(app_data).join("npm").join("codex.cmd");
+        if candidate.is_file() {
+            return candidate.into_os_string();
+        }
+    }
+
+    if let Some(path_var) = env::var_os("PATH") {
+        for dir in env::split_paths(&path_var) {
+            for candidate in ["codex.exe", "codex.cmd", "codex.bat", "codex.ps1", "codex"] {
+                let path = dir.join(candidate);
+                if path.is_file() {
+                    return path.into_os_string();
+                }
+            }
+        }
+    }
+
+    OsString::from("codex")
 }
 
 fn prompt_resume_selection(
@@ -354,11 +395,29 @@ fn execute_resume_candidate(candidate: &ResumeCandidate) -> Result<(), String> {
     }
 
     println!("Running: codex resume {}", candidate.thread_id);
-    let status = Command::new(resolve_codex_binary())
+    let codex_bin = resolve_codex_binary();
+    let codex_bin_string = codex_bin.to_string_lossy().to_ascii_lowercase();
+    let mut command = if codex_bin_string.ends_with(".ps1") {
+        let mut powershell = Command::new("powershell");
+        powershell
+            .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-File")
+            .arg(&codex_bin);
+        powershell
+    } else {
+        Command::new(&codex_bin)
+    };
+
+    let status = command
         .arg("resume")
         .arg(&candidate.thread_id)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .status()
-        .map_err(|err| err.to_string())?;
+        .map_err(|err| format!("failed to launch {:?}: {}", codex_bin, err))?;
 
     if status.success() {
         Ok(())

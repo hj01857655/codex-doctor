@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use doctor_core::{
-    best_resume_candidate_for_current_cwd, build_resume_doctor_report, ProviderDistribution,
-    RolloutRecord, RolloutSessionMeta, RootConfigSnapshot, ScanReport, ScanSummary,
-    SqliteThreadRecord, ThreadLocation,
+    best_resume_candidate_for_current_cwd, build_resume_doctor_report, scoped_resume_candidates,
+    ProviderDistribution, ResumeCandidateScope, RolloutRecord, RolloutSessionMeta,
+    RootConfigSnapshot, ScanReport, ScanSummary, SqliteThreadRecord, ThreadLocation,
 };
 
 fn base_report() -> ScanReport {
@@ -141,4 +141,36 @@ fn best_resume_candidate_prefers_latest_match_in_current_cwd() {
     let best = best_resume_candidate_for_current_cwd(&resume).expect("best candidate");
 
     assert_eq!(best.thread_id, "thr_456");
+}
+
+#[test]
+fn scoped_resume_candidates_hide_other_cwds_by_default() {
+    let mut report = base_report();
+    report.rollout_records.push(RolloutRecord {
+        thread_id: "thr_other".to_string(),
+        rollout_path: PathBuf::from("/tmp/sessions/rollout-other.jsonl"),
+        session_meta: RolloutSessionMeta {
+            provider: Some("openai".to_string()),
+            cwd: PathBuf::from("/workspace/other"),
+            timestamp: "2026-01-27T13:34:57Z".to_string(),
+        },
+        location: ThreadLocation::Active,
+        archived: false,
+    });
+    report.sqlite_threads.push(SqliteThreadRecord {
+        id: "thr_other".to_string(),
+        rollout_path: PathBuf::from("/tmp/sessions/rollout-other.jsonl"),
+        model_provider: "openai".to_string(),
+        archived_at: None,
+        cwd: PathBuf::from("/workspace/other"),
+    });
+
+    let resume = build_resume_doctor_report(&report, &PathBuf::from("/workspace/active"));
+    let current_only = scoped_resume_candidates(&resume, ResumeCandidateScope::CurrentCwdOnly);
+    let all = scoped_resume_candidates(&resume, ResumeCandidateScope::All);
+
+    assert_eq!(current_only.len(), 1);
+    assert_eq!(current_only[0].thread_id, "thr_123");
+    assert_eq!(all.len(), 2);
+    assert_eq!(all[0].thread_id, "thr_other");
 }

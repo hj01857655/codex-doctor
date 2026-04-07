@@ -46,6 +46,24 @@ fn prepare_codex_home() -> tempfile::TempDir {
     temp
 }
 
+fn add_second_rollout_in_other_cwd(codex_home: &Path, thread_id: &str, cwd: &str) {
+    let rollout_path = codex_home
+        .join("sessions")
+        .join(format!("rollout-2026-01-27T13-34-56-{thread_id}.jsonl"));
+    let content = format!(
+        "{{\"timestamp\":\"2026-01-27T13:34:56Z\",\"type\":\"session_meta\",\"payload\":{{\"id\":\"{thread_id}\",\"timestamp\":\"2026-01-27T13:34:56Z\",\"cwd\":\"{cwd}\",\"originator\":\"cli\",\"cli_version\":\"0.0.0\",\"source\":\"cli\",\"model_provider\":\"openai\"}}}}\n"
+    );
+    fs::write(&rollout_path, content).expect("write extra rollout");
+    insert_thread(
+        &codex_home.join("state_5.sqlite"),
+        thread_id,
+        &rollout_path,
+        "openai",
+        cwd,
+        None,
+    );
+}
+
 fn prepare_default_codex_home_root() -> tempfile::TempDir {
     let root = tempdir().expect("create tempdir");
     let codex_home = root.path().join(".codex");
@@ -444,9 +462,67 @@ fn resume_doctor_text_reports_visibility_and_blockers() {
     );
 
     assert!(output.contains("Codex Doctor - Resume Doctor"));
-    assert!(output.contains("Default /resume visibility: hidden"));
-    assert!(output.contains("cwd mismatch"));
-    assert!(output.contains("codex resume 00000000-0000-0000-0000-000000000123"));
+    assert!(output.contains("No current-cwd rollout candidates found"));
+    assert!(output.contains("Use --all"));
+}
+
+#[test]
+fn resume_doctor_defaults_to_current_cwd_only() {
+    let codex_home = prepare_codex_home();
+    add_second_rollout_in_other_cwd(
+        codex_home.path(),
+        "00000000-0000-0000-0000-000000000456",
+        "/workspace/other",
+    );
+
+    let output = run_cli(&[
+        "resume-doctor",
+        "--codex-home",
+        codex_home.path().to_str().expect("codex home path"),
+        "--current-cwd",
+        "/workspace/active",
+        "--json",
+    ]);
+
+    assert_eq!(
+        output["candidates"].as_array().expect("candidates").len(),
+        1
+    );
+    assert_eq!(
+        output["candidates"][0]["thread_id"],
+        "00000000-0000-0000-0000-000000000123"
+    );
+}
+
+#[test]
+fn resume_doctor_all_includes_other_cwds_sorted_newest_first() {
+    let codex_home = prepare_codex_home();
+    add_second_rollout_in_other_cwd(
+        codex_home.path(),
+        "00000000-0000-0000-0000-000000000456",
+        "/workspace/other",
+    );
+
+    let output = run_cli(&[
+        "resume-doctor",
+        "--codex-home",
+        codex_home.path().to_str().expect("codex home path"),
+        "--current-cwd",
+        "/workspace/active",
+        "--all",
+        "--json",
+    ]);
+
+    let candidates = output["candidates"].as_array().expect("candidates");
+    assert_eq!(candidates.len(), 3);
+    assert_eq!(
+        candidates[0]["thread_id"],
+        "00000000-0000-0000-0000-000000000456"
+    );
+    assert_eq!(
+        candidates[1]["thread_id"],
+        "00000000-0000-0000-0000-000000000123"
+    );
 }
 
 #[test]
@@ -505,6 +581,49 @@ fn resume_doctor_executes_selected_resume_command() {
 
     let logged = fs::read_to_string(&log_path).expect("read log");
     assert!(output.contains("Select session [1]:"));
+    assert!(output.contains("Running: codex resume 00000000-0000-0000-0000-000000000123"));
+    assert!(logged.contains("resume 00000000-0000-0000-0000-000000000123"));
+}
+
+#[test]
+fn resume_doctor_finds_codex_cmd_from_userprofile_without_path_entry() {
+    let codex_home = prepare_codex_home();
+    let temp = tempdir().expect("create exec tempdir");
+    let profile_root = temp.path().join("profile");
+    let npm_dir = profile_root.join("AppData").join("Roaming").join("npm");
+    fs::create_dir_all(&npm_dir).expect("create npm dir");
+    let log_path = temp.path().join("resume-profile.log");
+    let script_path = npm_dir.join("codex.cmd");
+    let script = format!(
+        "@echo off\r\necho %* > \"{}\"\r\nexit /b 0\r\n",
+        log_path.display()
+    );
+    fs::write(&script_path, script).expect("write fake codex");
+
+    let output = run_cli_text_with_input_and_env(
+        &[
+            "resume-doctor",
+            "--codex-home",
+            codex_home.path().to_str().expect("codex home path"),
+            "--current-cwd",
+            "/workspace/active",
+        ],
+        "1\n",
+        &[
+            ("USERPROFILE", profile_root.to_str().expect("profile path")),
+            (
+                "APPDATA",
+                profile_root
+                    .join("AppData")
+                    .join("Roaming")
+                    .to_str()
+                    .expect("appdata"),
+            ),
+            ("PATH", "C:\\Windows\\System32"),
+        ],
+    );
+
+    let logged = fs::read_to_string(&log_path).expect("read log");
     assert!(output.contains("Running: codex resume 00000000-0000-0000-0000-000000000123"));
     assert!(logged.contains("resume 00000000-0000-0000-0000-000000000123"));
 }

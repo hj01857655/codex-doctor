@@ -224,13 +224,16 @@ pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
     println!();
 
     if report.candidates.is_empty() {
-        println!("ℹ️  No rollout candidates found.");
+        println!(
+            "ℹ️  No current-cwd rollout candidates found. Use --all to inspect other directories."
+        );
         println!();
         return;
     }
 
     for (index, candidate) in report.candidates.iter().enumerate() {
         println!("{}. Thread: {}", index + 1, candidate.thread_id);
+        println!("  Updated: {}", candidate.timestamp);
         println!(
             "  Provider: {}",
             candidate.provider.as_deref().unwrap_or("(unknown)")

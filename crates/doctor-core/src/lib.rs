@@ -30,8 +30,8 @@ pub use repair::{
 };
 pub use resume::{
     best_resume_candidate_for_current_cwd, build_resume_doctor_report,
-    diagnosis_problem_matches_resume_visibility, ResumeBlocker, ResumeCandidate,
-    ResumeDoctorReport,
+    diagnosis_problem_matches_resume_visibility, scoped_resume_candidates, ResumeBlocker,
+    ResumeCandidate, ResumeCandidateScope, ResumeDoctorReport,
 };
 pub use rollout::{move_rollout_file, rewrite_rollout_provider};
 pub use scan::{

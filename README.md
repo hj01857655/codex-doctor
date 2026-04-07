@@ -132,7 +132,7 @@ codex-doctor resume-doctor
 ```
 
 This command reports:
-- which local sessions still exist,
+- current-cwd local sessions by default,
 - whether they are visible to the default `/resume` picker,
 - which blocker applies (`provider mismatch`, `cwd mismatch`, `archived`, `missing sqlite row`),
 - and the direct recovery command when possible.
@@ -141,6 +141,8 @@ By default it assumes:
 - `codex_home = ~/.codex` (or `%USERPROFILE%\\.codex` on Windows)
 - `current_cwd = your current shell directory`
 
+By default, `resume-doctor` only shows sessions whose stored `cwd` matches your current shell directory, and it sorts them newest first to match the expected `/resume` workflow more closely.
+
 If you want to simulate opening Codex from a specific directory:
 
 ```bash
@@ -148,6 +150,12 @@ codex-doctor resume-doctor --current-cwd /path/to/project --json
 ```
 
 Only pass `--codex-home` when your Codex state is not in the default home location.
+
+If you want to inspect sessions from other directories too:
+
+```bash
+codex-doctor resume-doctor --all
+```
 
 ### Preview repair plan (dry-run)
 

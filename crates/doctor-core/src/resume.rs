@@ -28,11 +28,17 @@ pub struct ResumeCandidate {
     pub direct_resume_command: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResumeCandidateScope {
+    CurrentCwdOnly,
+    All,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResumeDoctorReport {
-    pub current_cwd: PathBuf,
     pub root_provider: Option<String>,
     pub candidates: Vec<ResumeCandidate>,
+    pub current_cwd: PathBuf,
 }
 
 pub fn build_resume_doctor_report(
@@ -88,12 +94,27 @@ pub fn build_resume_doctor_report(
         });
     }
 
-    candidates.sort_by(|left, right| left.thread_id.cmp(&right.thread_id));
+    candidates.sort_by(|left, right| right.timestamp.cmp(&left.timestamp));
 
     ResumeDoctorReport {
         current_cwd: current_cwd.to_path_buf(),
         root_provider: scan_report.summary.root_provider.clone(),
         candidates,
+    }
+}
+
+pub fn scoped_resume_candidates(
+    report: &ResumeDoctorReport,
+    scope: ResumeCandidateScope,
+) -> Vec<ResumeCandidate> {
+    match scope {
+        ResumeCandidateScope::All => report.candidates.clone(),
+        ResumeCandidateScope::CurrentCwdOnly => report
+            .candidates
+            .iter()
+            .filter(|candidate| candidate.cwd == report.current_cwd)
+            .cloned()
+            .collect(),
     }
 }
 
@@ -107,11 +128,7 @@ pub fn diagnosis_problem_matches_resume_visibility(code: &ProblemCode) -> bool {
 pub fn best_resume_candidate_for_current_cwd(
     report: &ResumeDoctorReport,
 ) -> Option<&ResumeCandidate> {
-    report
-        .candidates
-        .iter()
-        .filter(|candidate| {
-            candidate.cwd == report.current_cwd && candidate.direct_resume_command.is_some()
-        })
-        .max_by(|left, right| left.timestamp.cmp(&right.timestamp))
+    report.candidates.iter().find(|candidate| {
+        candidate.cwd == report.current_cwd && candidate.direct_resume_command.is_some()
+    })
 }
