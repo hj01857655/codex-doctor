@@ -128,7 +128,7 @@ codex-doctor diagnose --codex-home ~/.codex --sqlite-home ~/.codex-sqlite --json
 ### Explain why `/resume` is empty
 
 ```bash
-codex-doctor resume-doctor --codex-home ~/.codex
+codex-doctor resume-doctor
 ```
 
 This command reports:
@@ -137,11 +137,17 @@ This command reports:
 - which blocker applies (`provider mismatch`, `cwd mismatch`, `archived`, `missing sqlite row`),
 - and the direct recovery command when possible.
 
+By default it assumes:
+- `codex_home = ~/.codex` (or `%USERPROFILE%\\.codex` on Windows)
+- `current_cwd = your current shell directory`
+
 If you want to simulate opening Codex from a specific directory:
 
 ```bash
-codex-doctor resume-doctor --codex-home ~/.codex --current-cwd /path/to/project --json
+codex-doctor resume-doctor --current-cwd /path/to/project --json
 ```
+
+Only pass `--codex-home` when your Codex state is not in the default home location.
 
 ### Preview repair plan (dry-run)
 

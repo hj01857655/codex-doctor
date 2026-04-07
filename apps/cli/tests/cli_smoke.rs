@@ -46,6 +46,34 @@ fn prepare_codex_home() -> tempfile::TempDir {
     temp
 }
 
+fn prepare_default_codex_home_root() -> tempfile::TempDir {
+    let root = tempdir().expect("create tempdir");
+    let codex_home = root.path().join(".codex");
+    fs::create_dir_all(&codex_home).expect("create .codex directory");
+
+    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("tests")
+        .join("fixtures")
+        .join("backup")
+        .join("sample-codex");
+
+    copy_dir_recursive(&source, &codex_home);
+    create_threads_table(&codex_home.join("state_5.sqlite"));
+    insert_thread(
+        &codex_home.join("state_5.sqlite"),
+        "00000000-0000-0000-0000-000000000123",
+        &codex_home
+            .join("sessions")
+            .join("rollout-2026-01-27T12-34-56-00000000-0000-0000-0000-000000000123.jsonl"),
+        "openai",
+        "/workspace/active",
+        None,
+    );
+    root
+}
+
 fn prepare_codex_home_with_separate_sqlite_home() -> (tempfile::TempDir, tempfile::TempDir) {
     let codex_home = prepare_codex_home();
     let sqlite_home = tempdir().expect("create sqlite home");
@@ -175,6 +203,22 @@ fn run_cli_text(args: &[&str]) -> String {
         String::from_utf8_lossy(&output.stderr)
     );
     String::from_utf8(output.stdout).expect("parse stdout as utf8")
+}
+
+fn run_cli_with_env(args: &[&str], envs: &[(&str, &str)]) -> Value {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_codex-doctor"));
+    command.args(args);
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    let output = command.output().expect("run cli");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("parse json output")
 }
 
 #[test]
@@ -373,6 +417,33 @@ fn resume_doctor_text_reports_visibility_and_blockers() {
     assert!(output.contains("Default /resume visibility: hidden"));
     assert!(output.contains("cwd mismatch"));
     assert!(output.contains("codex resume 00000000-0000-0000-0000-000000000123"));
+}
+
+#[test]
+fn resume_doctor_uses_default_codex_home_without_explicit_path() {
+    let root = prepare_default_codex_home_root();
+
+    let output = run_cli_with_env(
+        &[
+            "resume-doctor",
+            "--current-cwd",
+            "/workspace/active",
+            "--json",
+        ],
+        &[
+            (
+                "USERPROFILE",
+                root.path().to_str().expect("userprofile path"),
+            ),
+            ("HOME", root.path().to_str().expect("home path")),
+        ],
+    );
+
+    assert_eq!(
+        output["candidates"][0]["direct_resume_command"],
+        "codex resume 00000000-0000-0000-0000-000000000123"
+    );
+    assert_eq!(output["candidates"][0]["default_picker_visible"], true);
 }
 
 #[test]

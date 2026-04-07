@@ -1,5 +1,6 @@
 mod output;
 
+use std::env;
 use std::path::PathBuf;
 use std::process;
 
@@ -63,7 +64,7 @@ struct DiagnoseArgs {
 #[derive(Args)]
 struct ResumeDoctorArgs {
     #[arg(long)]
-    codex_home: PathBuf,
+    codex_home: Option<PathBuf>,
     #[arg(long)]
     sqlite_home: Option<PathBuf>,
     #[arg(long)]
@@ -164,11 +165,15 @@ fn run() -> Result<(), String> {
             }
         }
         Commands::ResumeDoctor(args) => {
+            let codex_home = match args.codex_home {
+                Some(path) => path,
+                None => default_codex_home()?,
+            };
             let report =
-                scan_codex_home_with_sqlite_home(&args.codex_home, args.sqlite_home.as_deref())?;
+                scan_codex_home_with_sqlite_home(&codex_home, args.sqlite_home.as_deref())?;
             let current_cwd = match args.current_cwd {
                 Some(path) => path,
-                None => std::env::current_dir().map_err(|err| err.to_string())?,
+                None => env::current_dir().map_err(|err| err.to_string())?,
             };
             let resume_report = build_resume_doctor_report(&report, &current_cwd);
             if args.json {
@@ -278,6 +283,16 @@ fn run() -> Result<(), String> {
     }
 
     Ok(())
+}
+
+fn default_codex_home() -> Result<PathBuf, String> {
+    let home = env::var_os("CODEX_HOME")
+        .or_else(|| env::var_os("USERPROFILE"))
+        .or_else(|| env::var_os("HOME"))
+        .map(PathBuf::from)
+        .ok_or_else(|| "could not resolve codex home; pass --codex-home explicitly".to_string())?;
+
+    Ok(home.join(".codex"))
 }
 
 fn print_json(value: &Value) -> Result<(), String> {
