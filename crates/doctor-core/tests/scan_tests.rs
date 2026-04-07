@@ -177,3 +177,37 @@ fn scan_codex_home_marks_locked_sqlite_database() {
 
     assert!(report.summary.sqlite_locked);
 }
+
+#[test]
+fn scan_codex_home_recurses_into_nested_session_directories() {
+    let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("tests")
+        .join("fixtures")
+        .join("backup")
+        .join("sample-codex");
+    let temp = tempdir().expect("tempdir");
+    let codex_home = temp.path().join("sample-codex");
+    copy_dir_recursive(&fixture_root, &codex_home);
+
+    let nested_dir = codex_home
+        .join("sessions")
+        .join("2026")
+        .join("04")
+        .join("07");
+    fs::create_dir_all(&nested_dir).expect("create nested sessions dir");
+    let nested_rollout = nested_dir.join("rollout-2026-04-07T10-00-00-thr_nested.jsonl");
+    fs::write(
+        &nested_rollout,
+        "{\"timestamp\":\"2026-04-07T10:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"thr_nested\",\"timestamp\":\"2026-04-07T10:00:00Z\",\"cwd\":\"/workspace/nested\",\"originator\":\"cli\",\"cli_version\":\"0.0.0\",\"source\":\"cli\",\"model_provider\":\"openai\"}}\n",
+    )
+    .expect("write nested rollout");
+
+    let report = scan_codex_home(&codex_home).expect("scan report");
+
+    assert!(report
+        .rollout_records
+        .iter()
+        .any(|record| record.thread_id == "thr_nested"));
+}

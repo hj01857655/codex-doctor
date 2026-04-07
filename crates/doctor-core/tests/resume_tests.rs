@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use doctor_core::{
-    best_resume_candidate_for_current_cwd, build_resume_doctor_report, scoped_resume_candidates,
-    ProviderDistribution, ResumeCandidateScope, RolloutRecord, RolloutSessionMeta,
-    RootConfigSnapshot, ScanReport, ScanSummary, SqliteThreadRecord, ThreadLocation,
+    best_resume_candidate_for_current_cwd, build_resume_doctor_report, ProviderDistribution,
+    RolloutRecord, RolloutSessionMeta, RootConfigSnapshot, ScanReport, ScanSummary,
+    SqliteThreadRecord, ThreadLocation,
 };
 
 fn base_report() -> ScanReport {
@@ -116,6 +116,17 @@ fn missing_sqlite_row_removes_direct_resume_command() {
 }
 
 #[test]
+fn best_resume_candidate_ignores_hidden_current_cwd_sessions() {
+    let mut report = base_report();
+    report.rollout_records[0].session_meta.provider = Some("anthropic".to_string());
+    report.sqlite_threads[0].model_provider = "anthropic".to_string();
+
+    let resume = build_resume_doctor_report(&report, &PathBuf::from("/workspace/active"));
+
+    assert!(best_resume_candidate_for_current_cwd(&resume).is_none());
+}
+
+#[test]
 fn best_resume_candidate_prefers_latest_match_in_current_cwd() {
     let mut report = base_report();
     report.rollout_records.push(RolloutRecord {
@@ -166,8 +177,12 @@ fn scoped_resume_candidates_hide_other_cwds_by_default() {
     });
 
     let resume = build_resume_doctor_report(&report, &PathBuf::from("/workspace/active"));
-    let current_only = scoped_resume_candidates(&resume, ResumeCandidateScope::CurrentCwdOnly);
-    let all = scoped_resume_candidates(&resume, ResumeCandidateScope::All);
+    let current_only = doctor_core::scoped_resume_candidates(
+        &resume,
+        doctor_core::ResumeCandidateScope::CurrentCwdOnly,
+    );
+    let all =
+        doctor_core::scoped_resume_candidates(&resume, doctor_core::ResumeCandidateScope::All);
 
     assert_eq!(current_only.len(), 1);
     assert_eq!(current_only[0].thread_id, "thr_123");

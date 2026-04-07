@@ -129,6 +129,8 @@ pub fn best_resume_candidate_for_current_cwd(
     report: &ResumeDoctorReport,
 ) -> Option<&ResumeCandidate> {
     report.candidates.iter().find(|candidate| {
-        candidate.cwd == report.current_cwd && candidate.direct_resume_command.is_some()
+        candidate.cwd == report.current_cwd
+            && candidate.default_picker_visible
+            && candidate.direct_resume_command.is_some()
     })
 }

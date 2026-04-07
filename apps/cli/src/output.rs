@@ -220,7 +220,7 @@ pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
         "Root provider: {}",
         report.root_provider.as_deref().unwrap_or("(not set)")
     );
-    println!("Candidates: {}", report.candidates.len());
+    println!("Candidates (newest first): {}", report.candidates.len());
     println!();
 
     if report.candidates.is_empty() {
@@ -231,35 +231,58 @@ pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
         return;
     }
 
+    println!(
+        "{:<3} {:<4} {:<20} {:<10} {:<8} {:<5} {:<12} Why hidden",
+        "#", "Pick", "Updated", "Provider", "Loc", "CWD", "Thread"
+    );
+    println!(
+        "{:-<3} {:-<4} {:-<20} {:-<10} {:-<8} {:-<5} {:-<12} {:-<1}",
+        "", "", "", "", "", "", "", ""
+    );
+
     for (index, candidate) in report.candidates.iter().enumerate() {
-        println!("{}. Thread: {}", index + 1, candidate.thread_id);
-        println!("  Updated: {}", candidate.timestamp);
-        println!(
-            "  Provider: {}",
-            candidate.provider.as_deref().unwrap_or("(unknown)")
-        );
-        println!("  Cwd: {}", candidate.cwd.display());
-        println!("  Location: {:?}", candidate.location);
-        println!(
-            "  Default /resume visibility: {}",
-            if candidate.default_picker_visible {
-                "visible"
-            } else {
-                "hidden"
-            }
-        );
-        if candidate.blockers.is_empty() {
-            println!("  Blockers: none");
+        let picker = if candidate.default_picker_visible {
+            "yes"
         } else {
-            println!("  Blockers:");
-            for blocker in &candidate.blockers {
-                println!("    - {}", resume_blocker_text(blocker));
-            }
-        }
+            "no"
+        };
+        let cwd_match = if candidate.cwd == report.current_cwd {
+            "yes"
+        } else {
+            "no"
+        };
+        let location = match candidate.location {
+            doctor_core::ThreadLocation::Active => "active",
+            doctor_core::ThreadLocation::Archived => "archived",
+        };
+        let hidden_reason = if candidate.blockers.is_empty() {
+            "-".to_string()
+        } else {
+            resume_blocker_summary(&candidate.blockers)
+        };
+
+        println!(
+            "{:<3} {:<4} {:<20} {:<10} {:<8} {:<5} {:<12} {}",
+            index + 1,
+            picker,
+            truncate_cell(&candidate.timestamp, 20),
+            truncate_cell(candidate.provider.as_deref().unwrap_or("(unknown)"), 10),
+            location,
+            cwd_match,
+            truncate_cell(&candidate.thread_id, 12),
+            truncate_cell(&hidden_reason, 48)
+        );
+    }
+
+    println!();
+    if let Some((index, candidate)) = report.candidates.iter().enumerate().find(|(_, candidate)| {
+        candidate.cwd == report.current_cwd
+            && candidate.default_picker_visible
+            && candidate.direct_resume_command.is_some()
+    }) {
+        println!("Recommended: #{} {}", index + 1, candidate.thread_id);
         if let Some(command) = &candidate.direct_resume_command {
-            println!("  Direct resume: {}", command);
-        } else {
-            println!("  Direct resume: unavailable (missing sqlite thread row)");
+            println!("Command: {}", command);
         }
         println!();
     }
@@ -268,6 +291,30 @@ pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
         "Enter a candidate number to run `codex resume <thread_id>`, or press Enter to cancel."
     );
     println!();
+}
+
+fn resume_blocker_summary(blockers: &[ResumeBlocker]) -> String {
+    blockers
+        .iter()
+        .map(|blocker| match blocker {
+            ResumeBlocker::MissingSqliteThreadRow => "missing sqlite row".to_string(),
+            ResumeBlocker::Archived => "archived".to_string(),
+            ResumeBlocker::ProviderMismatch { .. } => "provider mismatch".to_string(),
+            ResumeBlocker::CwdMismatch { .. } => "cwd mismatch".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn truncate_cell(value: &str, max_chars: usize) -> String {
+    let chars = value.chars().collect::<Vec<_>>();
+    if chars.len() <= max_chars {
+        value.to_string()
+    } else if max_chars <= 1 {
+        "…".to_string()
+    } else {
+        format!("{}…", chars[..max_chars - 1].iter().collect::<String>())
+    }
 }
 
 fn print_rollout_record(record: &RolloutRecord, is_last: bool) {
@@ -362,28 +409,6 @@ fn print_repair_action_record(action: &RepairActionRecord) {
         "       {} {}{} - {}",
         status_icon, action.action_type, retryable_suffix, action.details
     );
-}
-
-fn resume_blocker_text(blocker: &ResumeBlocker) -> String {
-    match blocker {
-        ResumeBlocker::MissingSqliteThreadRow => "missing sqlite thread row".to_string(),
-        ResumeBlocker::Archived => "archived sessions are hidden by default /resume".to_string(),
-        ResumeBlocker::ProviderMismatch {
-            session_provider,
-            current_provider,
-        } => format!(
-            "provider mismatch: session={}, current={}",
-            session_provider, current_provider
-        ),
-        ResumeBlocker::CwdMismatch {
-            session_cwd,
-            current_cwd,
-        } => format!(
-            "cwd mismatch: session={}, current={}",
-            session_cwd.display(),
-            current_cwd.display()
-        ),
-    }
 }
 
 fn yes_no(value: bool) -> &'static str {

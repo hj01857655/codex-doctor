@@ -580,9 +580,41 @@ fn resume_doctor_executes_selected_resume_command() {
     );
 
     let logged = fs::read_to_string(&log_path).expect("read log");
-    assert!(output.contains("Select session [1]:"));
+    assert!(output.contains("Select session number"));
     assert!(output.contains("Running: codex resume 00000000-0000-0000-0000-000000000123"));
     assert!(logged.contains("resume 00000000-0000-0000-0000-000000000123"));
+}
+
+#[test]
+fn resume_doctor_enter_cancels_without_running_resume() {
+    let codex_home = prepare_codex_home();
+    let temp = tempdir().expect("create exec tempdir");
+    let log_path = temp.path().join("resume-cancel.log");
+    let script_path = temp.path().join("fake-codex.cmd");
+    let script = format!(
+        "@echo off\r\necho %* > \"{}\"\r\nexit /b 0\r\n",
+        log_path.display()
+    );
+    fs::write(&script_path, script).expect("write fake codex");
+
+    let output = run_cli_text_with_input_and_env(
+        &[
+            "resume-doctor",
+            "--codex-home",
+            codex_home.path().to_str().expect("codex home path"),
+            "--current-cwd",
+            "/workspace/active",
+        ],
+        "\n",
+        &[(
+            "CODEX_DOCTOR_CODEX_BIN",
+            script_path.to_str().expect("script path"),
+        )],
+    );
+
+    assert!(output.contains("Select session number"));
+    assert!(!output.contains("Running: codex resume"));
+    assert!(!log_path.exists());
 }
 
 #[test]

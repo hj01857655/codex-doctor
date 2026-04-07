@@ -162,9 +162,24 @@ fn read_rollouts_in_dir(dir: &Path, location: ThreadLocation) -> Result<RolloutD
     }
 
     let mut result = RolloutDirScan::default();
+    collect_rollouts(dir, &location, &mut result)?;
+
+    Ok(result)
+}
+
+fn collect_rollouts(
+    dir: &Path,
+    location: &ThreadLocation,
+    result: &mut RolloutDirScan,
+) -> Result<(), String> {
     for entry in fs::read_dir(dir).map_err(|err| err.to_string())? {
         let entry = entry.map_err(|err| err.to_string())?;
         let path = entry.path();
+        if path.is_dir() {
+            collect_rollouts(&path, location, result)?;
+            continue;
+        }
+
         if path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("jsonl") {
             if probe_rollout_lock(&path)? {
                 result.locked_paths.push(path);
@@ -176,7 +191,7 @@ fn read_rollouts_in_dir(dir: &Path, location: ThreadLocation) -> Result<RolloutD
         }
     }
 
-    Ok(result)
+    Ok(())
 }
 
 fn probe_rollout_lock(path: &Path) -> Result<bool, String> {

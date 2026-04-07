@@ -360,7 +360,10 @@ fn prompt_resume_selection(
         .position(|candidate| candidate.thread_id == default_thread_id)
         .unwrap_or(0);
 
-    print!("Select session [{}]: ", default_index + 1);
+    print!(
+        "Select session number (default suggested: {}, Enter to cancel): ",
+        default_index + 1
+    );
     io::stdout().flush().map_err(|err| err.to_string())?;
 
     let mut input = String::new();
@@ -373,7 +376,7 @@ fn prompt_resume_selection(
 
     let trimmed = input.trim();
     if trimmed.is_empty() {
-        return Ok(Some(default_index));
+        return Ok(None);
     }
 
     let selection = trimmed
@@ -391,6 +394,19 @@ fn execute_resume_candidate(candidate: &ResumeCandidate) -> Result<(), String> {
         return Err(format!(
             "selected session {} cannot be resumed directly because sqlite thread metadata is missing",
             candidate.thread_id
+        ));
+    }
+
+    if !candidate.default_picker_visible {
+        let blockers = candidate
+            .blockers
+            .iter()
+            .map(resume_blocker_cli_reason)
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(format!(
+            "selected session {} is currently hidden from default /resume: {}",
+            candidate.thread_id, blockers
         ));
     }
 
@@ -426,6 +442,28 @@ fn execute_resume_candidate(candidate: &ResumeCandidate) -> Result<(), String> {
             "codex resume {} exited with status {}",
             candidate.thread_id, status
         ))
+    }
+}
+
+fn resume_blocker_cli_reason(blocker: &ResumeBlocker) -> String {
+    match blocker {
+        ResumeBlocker::MissingSqliteThreadRow => "missing sqlite thread row".to_string(),
+        ResumeBlocker::Archived => "session is archived".to_string(),
+        ResumeBlocker::ProviderMismatch {
+            session_provider,
+            current_provider,
+        } => format!(
+            "provider mismatch (session={}, current={})",
+            session_provider, current_provider
+        ),
+        ResumeBlocker::CwdMismatch {
+            session_cwd,
+            current_cwd,
+        } => format!(
+            "cwd mismatch (session={}, current={})",
+            session_cwd.display(),
+            current_cwd.display()
+        ),
     }
 }
 
