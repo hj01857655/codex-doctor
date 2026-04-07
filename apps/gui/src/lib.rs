@@ -875,7 +875,10 @@ fn open_path_in_file_manager(path: &Path) -> Result<(), String> {
 
 fn retryable_hint(message: &str) -> Option<&'static str> {
     let lower = message.to_ascii_lowercase();
-    if lower.contains("locked") || lower.contains("busy") || lower.contains("used by another process") {
+    if lower.contains("locked")
+        || lower.contains("busy")
+        || lower.contains("used by another process")
+    {
         Some("close Codex or any process holding the file/database, then retry")
     } else {
         None

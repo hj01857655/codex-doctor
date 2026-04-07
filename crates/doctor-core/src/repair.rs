@@ -48,8 +48,11 @@ pub fn execute_repair_plan_with_sqlite_home(
     let backup = if dry_run || plan.actions.is_empty() {
         None
     } else {
-        match create_backup_snapshot_with_sqlite_home(codex_home, backups_root, sqlite_home_override)
-        {
+        match create_backup_snapshot_with_sqlite_home(
+            codex_home,
+            backups_root,
+            sqlite_home_override,
+        ) {
             Ok(snapshot) => Some(snapshot),
             Err(message) if is_lock_message(&message) => {
                 return Ok(RepairExecutionReport {
@@ -61,9 +64,7 @@ pub fn execute_repair_plan_with_sqlite_home(
                         .cloned()
                         .map(|action| RepairExecutionEntry {
                             action,
-                            message: format!(
-                                "backup blocked by locked resource: {message}"
-                            ),
+                            message: format!("backup blocked by locked resource: {message}"),
                             retryable: true,
                         })
                         .collect(),
@@ -95,11 +96,13 @@ pub fn execute_repair_plan_with_sqlite_home(
                 message,
                 retryable: false,
             }),
-            Err(ApplyActionError::Retryable(message)) => report.skipped.push(RepairExecutionEntry {
-                action: action.clone(),
-                message,
-                retryable: true,
-            }),
+            Err(ApplyActionError::Retryable(message)) => {
+                report.skipped.push(RepairExecutionEntry {
+                    action: action.clone(),
+                    message,
+                    retryable: true,
+                })
+            }
             Err(ApplyActionError::Fatal(message)) => report.failed.push(RepairExecutionEntry {
                 action: action.clone(),
                 message,
@@ -120,8 +123,9 @@ fn apply_action(layout: &CodexLayout, action: &RepairAction) -> Result<String, A
     match action {
         RepairAction::UpsertSqliteThreadMetadata { thread_id } => {
             ensure_sqlite_writable(&layout.state_db)?;
-            let rollout = find_rollout_record(layout, thread_id)?
-                .ok_or_else(|| ApplyActionError::Fatal(format!("rollout record not found for thread {thread_id}")))?;
+            let rollout = find_rollout_record(layout, thread_id)?.ok_or_else(|| {
+                ApplyActionError::Fatal(format!("rollout record not found for thread {thread_id}"))
+            })?;
             let sqlite_record = SqliteThreadRecord {
                 id: rollout.thread_id.clone(),
                 rollout_path: rollout.rollout_path.clone(),
@@ -140,10 +144,12 @@ fn apply_action(layout: &CodexLayout, action: &RepairAction) -> Result<String, A
             thread_id,
             provider,
         } => {
-            let rollout = find_rollout_record(layout, thread_id)?
-                .ok_or_else(|| ApplyActionError::Fatal(format!("rollout record not found for thread {thread_id}")))?;
+            let rollout = find_rollout_record(layout, thread_id)?.ok_or_else(|| {
+                ApplyActionError::Fatal(format!("rollout record not found for thread {thread_id}"))
+            })?;
             ensure_rollout_writable(&rollout.rollout_path)?;
-            rewrite_rollout_provider(&rollout.rollout_path, provider).map_err(classify_write_error)?;
+            rewrite_rollout_provider(&rollout.rollout_path, provider)
+                .map_err(classify_write_error)?;
             Ok(format!("rewrote rollout provider for {thread_id}"))
         }
         RepairAction::MoveRolloutToArchive { thread_id } => {
@@ -155,13 +161,15 @@ fn apply_action(layout: &CodexLayout, action: &RepairAction) -> Result<String, A
             move_rollout(layout, thread_id, &layout.sessions_dir, false)
         }
         RepairAction::PatchConfigModelProvider { provider } => {
-            patch_root_model_provider(&layout.config_toml, provider).map_err(classify_write_error)?;
+            patch_root_model_provider(&layout.config_toml, provider)
+                .map_err(classify_write_error)?;
             Ok(format!("patched config model_provider to {provider}"))
         }
         RepairAction::RebuildMissingIndexFromRollout { thread_id, .. } => {
             ensure_sqlite_writable(&layout.state_db)?;
-            let rollout = find_rollout_record(layout, thread_id)?
-                .ok_or_else(|| ApplyActionError::Fatal(format!("rollout record not found for thread {thread_id}")))?;
+            let rollout = find_rollout_record(layout, thread_id)?.ok_or_else(|| {
+                ApplyActionError::Fatal(format!("rollout record not found for thread {thread_id}"))
+            })?;
             let sqlite_record = SqliteThreadRecord {
                 id: rollout.thread_id.clone(),
                 rollout_path: rollout.rollout_path.clone(),
@@ -185,15 +193,15 @@ fn move_rollout(
     destination_dir: &Path,
     archived: bool,
 ) -> Result<String, ApplyActionError> {
-    let rollout = find_rollout_record(layout, thread_id)?
-        .ok_or_else(|| ApplyActionError::Fatal(format!("rollout record not found for thread {thread_id}")))?;
+    let rollout = find_rollout_record(layout, thread_id)?.ok_or_else(|| {
+        ApplyActionError::Fatal(format!("rollout record not found for thread {thread_id}"))
+    })?;
     ensure_rollout_writable(&rollout.rollout_path)?;
     let new_path =
         move_rollout_file(&rollout.rollout_path, destination_dir).map_err(classify_write_error)?;
 
-    if let Some(mut sqlite_record) =
-        read_thread_by_id(&layout.state_db, thread_id)
-            .map_err(|err| ApplyActionError::Fatal(err.to_string()))?
+    if let Some(mut sqlite_record) = read_thread_by_id(&layout.state_db, thread_id)
+        .map_err(|err| ApplyActionError::Fatal(err.to_string()))?
     {
         sqlite_record.rollout_path = new_path;
         sqlite_record.archived_at = if archived {
@@ -239,14 +247,16 @@ fn find_rollout_in_dir(
             continue;
         }
 
-        if probe_rollout_lock(&path).map_err(classify_io_error)? && path_matches_thread(&path, thread_id)
+        if probe_rollout_lock(&path).map_err(classify_io_error)?
+            && path_matches_thread(&path, thread_id)
         {
             return Err(ApplyActionError::Retryable(format!(
                 "rollout file for {thread_id} is locked by another process"
             )));
         }
 
-        let record = RolloutRecord::from_path(&path, location.clone()).map_err(ApplyActionError::Fatal)?;
+        let record =
+            RolloutRecord::from_path(&path, location.clone()).map_err(ApplyActionError::Fatal)?;
         if record.thread_id == thread_id {
             return Ok(Some(record));
         }
@@ -334,7 +344,10 @@ fn classify_io_error(err: std::io::Error) -> ApplyActionError {
 fn is_lock_sqlite_error(err: &SqliteError) -> bool {
     match err {
         SqliteError::SqliteFailure(inner, _) => {
-            matches!(inner.code, ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked)
+            matches!(
+                inner.code,
+                ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked
+            )
         }
         _ => is_lock_message(&err.to_string()),
     }

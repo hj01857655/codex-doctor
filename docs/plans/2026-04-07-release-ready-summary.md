@@ -59,6 +59,7 @@
 
 - `logs_2.sqlite` 与 `history.jsonl` 当前纳入扫描、诊断、备份与恢复
 - 这两类问题当前只做诊断，不自动生成修复动作
+- 锁冲突当前在 repair / backup 阶段会转成 `skipped + retryable`
 
 ## Test coverage shape
 
@@ -87,7 +88,7 @@
 - `apps/cli/tests/cli_smoke.rs`
   - CLI JSON / human-readable / history / backup / restore / prune
 - `apps/gui/tests/gui_smoke.rs`
-  - GUI Dashboard / Backups / History / export / restore / prune
+  - GUI Dashboard / Backups / History / export / restore / prune / retryable hint
 
 ## Verification evidence
 

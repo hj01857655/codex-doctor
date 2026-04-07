@@ -92,6 +92,8 @@ The scan summary reports whether these local state surfaces are present/readable
 - `state_5.sqlite`
 - `logs_2.sqlite`
 - `history.jsonl`
+- `sessions/` availability
+- locked database / locked rollout state
 
 With JSON output:
 ```bash
@@ -215,6 +217,9 @@ When a repair is executed from the GUI, it writes:
 | Provider mismatch | Rewrite rollout and SQLite metadata |
 | Archived state mismatch | Move rollout to correct location |
 | Missing root model provider | Patch config.toml |
+| Missing `sessions/` directory | Diagnose and report missing local session storage |
+| Unreadable `state_5.sqlite` | Diagnose and report unreadable SQLite state |
+| Locked database / rollout files | Detect lock conflicts and mark retryable execution paths |
 | Missing / unreadable `history.jsonl` | Diagnose and report local history state |
 | Missing / unreadable `logs_2.sqlite` | Diagnose and report logs database state |
 
@@ -224,6 +229,7 @@ When a repair is executed from the GUI, it writes:
 - **Dry-run first**: Preview changes before applying them
 - **Atomic operations**: Repairs are applied in order with rollback support
 - **Lock detection**: Skips locked files/databases and reports them as retryable
+- **Retry guidance**: Repair output and history explicitly preserve whether a skipped item is retryable
 - **Evidence-based**: Only repairs problems with clear evidence
 
 ## Platform Notes

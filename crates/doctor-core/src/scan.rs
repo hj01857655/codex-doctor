@@ -4,11 +4,11 @@ use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rusqlite::{Connection, Error as SqliteError, ErrorCode, OpenFlags};
 use crate::{
     read_root_config_snapshot, read_threads, CodexLayout, RolloutRecord, RootConfigSnapshot,
     SqliteThreadRecord, ThreadLocation,
 };
+use rusqlite::{Connection, Error as SqliteError, ErrorCode, OpenFlags};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScanSummary {
@@ -156,10 +156,7 @@ struct RolloutDirScan {
     locked_paths: Vec<PathBuf>,
 }
 
-fn read_rollouts_in_dir(
-    dir: &Path,
-    location: ThreadLocation,
-) -> Result<RolloutDirScan, String> {
+fn read_rollouts_in_dir(dir: &Path, location: ThreadLocation) -> Result<RolloutDirScan, String> {
     if !dir.exists() {
         return Ok(RolloutDirScan::default());
     }
@@ -214,7 +211,10 @@ fn probe_sqlite_lock(path: &Path) -> bool {
 fn is_lock_sqlite_error(err: &SqliteError) -> bool {
     match err {
         SqliteError::SqliteFailure(inner, _) => {
-            matches!(inner.code, ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked)
+            matches!(
+                inner.code,
+                ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked
+            )
         }
         _ => {
             let text = err.to_string().to_ascii_lowercase();
