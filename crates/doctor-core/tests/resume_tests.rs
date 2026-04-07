@@ -116,14 +116,16 @@ fn missing_sqlite_row_removes_direct_resume_command() {
 }
 
 #[test]
-fn best_resume_candidate_ignores_hidden_current_cwd_sessions() {
+fn best_resume_candidate_allows_provider_mismatch_for_current_cwd() {
     let mut report = base_report();
     report.rollout_records[0].session_meta.provider = Some("anthropic".to_string());
     report.sqlite_threads[0].model_provider = "anthropic".to_string();
 
     let resume = build_resume_doctor_report(&report, &PathBuf::from("/workspace/active"));
+    let best = best_resume_candidate_for_current_cwd(&resume).expect("best candidate");
 
-    assert!(best_resume_candidate_for_current_cwd(&resume).is_none());
+    assert_eq!(best.thread_id, "thr_123");
+    assert!(!best.default_picker_visible);
 }
 
 #[test]
