@@ -208,7 +208,11 @@ fn write_fake_codex_script(path: &Path, log_path: &Path) {
         log_path.display()
     );
 
+    #[cfg(windows)]
     fs::write(path, script).expect("write fake codex");
+
+    #[cfg(not(windows))]
+    std::fs::write(path, script.as_bytes()).expect("write fake codex");
 
     #[cfg(unix)]
     {
