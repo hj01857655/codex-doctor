@@ -43,7 +43,6 @@ For normal users, the recommended path is to download a prebuilt release from Gi
 The repository ships a tag-driven release workflow at `.github/workflows/release.yml`. Pushing a tag that matches `v*` builds and uploads these release assets:
 - `codex-doctor-windows-x86_64.zip`
 - `codex-doctor-linux-x86_64.tar.gz`
-- `codex-doctor-macos-x86_64.tar.gz`
 
 Each archive contains:
 - `codex-doctor` / `codex-doctor.exe`
