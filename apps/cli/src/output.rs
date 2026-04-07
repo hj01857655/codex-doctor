@@ -1,6 +1,6 @@
 use doctor_core::{
     BackupManifest, DiagnosisProblem, ProblemSeverity, RepairActionRecord, RepairHistoryEntry,
-    RolloutRecord, ScanReport, SqliteThreadRecord,
+    ResumeBlocker, ResumeDoctorReport, RolloutRecord, ScanReport, SqliteThreadRecord,
 };
 
 pub fn print_scan_report_human(report: &ScanReport) {
@@ -210,6 +210,58 @@ pub fn print_repair_history_human(entries: &[RepairHistoryEntry]) {
     println!();
 }
 
+pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
+    println!("╔═══════════════════════════════════════════════════════════════╗");
+    println!("║                 Codex Doctor - Resume Doctor                 ║");
+    println!("╚═══════════════════════════════════════════════════════════════╝");
+    println!();
+    println!("Current cwd: {}", report.current_cwd.display());
+    println!(
+        "Root provider: {}",
+        report.root_provider.as_deref().unwrap_or("(not set)")
+    );
+    println!("Candidates: {}", report.candidates.len());
+    println!();
+
+    if report.candidates.is_empty() {
+        println!("ℹ️  No rollout candidates found.");
+        println!();
+        return;
+    }
+
+    for candidate in &report.candidates {
+        println!("• Thread: {}", candidate.thread_id);
+        println!(
+            "  Provider: {}",
+            candidate.provider.as_deref().unwrap_or("(unknown)")
+        );
+        println!("  Cwd: {}", candidate.cwd.display());
+        println!("  Location: {:?}", candidate.location);
+        println!(
+            "  Default /resume visibility: {}",
+            if candidate.default_picker_visible {
+                "visible"
+            } else {
+                "hidden"
+            }
+        );
+        if candidate.blockers.is_empty() {
+            println!("  Blockers: none");
+        } else {
+            println!("  Blockers:");
+            for blocker in &candidate.blockers {
+                println!("    - {}", resume_blocker_text(blocker));
+            }
+        }
+        if let Some(command) = &candidate.direct_resume_command {
+            println!("  Direct resume: {}", command);
+        } else {
+            println!("  Direct resume: unavailable (missing sqlite thread row)");
+        }
+        println!();
+    }
+}
+
 fn print_rollout_record(record: &RolloutRecord, is_last: bool) {
     let prefix = if is_last { "└─" } else { "├─" };
     println!("  {} Thread: {}", prefix, &record.thread_id[..8]);
@@ -302,6 +354,28 @@ fn print_repair_action_record(action: &RepairActionRecord) {
         "       {} {}{} - {}",
         status_icon, action.action_type, retryable_suffix, action.details
     );
+}
+
+fn resume_blocker_text(blocker: &ResumeBlocker) -> String {
+    match blocker {
+        ResumeBlocker::MissingSqliteThreadRow => "missing sqlite thread row".to_string(),
+        ResumeBlocker::Archived => "archived sessions are hidden by default /resume".to_string(),
+        ResumeBlocker::ProviderMismatch {
+            session_provider,
+            current_provider,
+        } => format!(
+            "provider mismatch: session={}, current={}",
+            session_provider, current_provider
+        ),
+        ResumeBlocker::CwdMismatch {
+            session_cwd,
+            current_cwd,
+        } => format!(
+            "cwd mismatch: session={}, current={}",
+            session_cwd.display(),
+            current_cwd.display()
+        ),
+    }
 }
 
 fn yes_no(value: bool) -> &'static str {

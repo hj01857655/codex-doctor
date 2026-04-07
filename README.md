@@ -9,7 +9,8 @@ A cross-platform CLI and GUI tool for diagnosing and repairing local Codex state
 ## Current Status
 
 - **What is covered today**:
-  - CLI: `scan`, `diagnose`, `repair` (dry-run/main plus `--save-history`), `history`, `backup list/restore/prune` in both JSON and human-readable modes.
+- CLI: `scan`, `diagnose`, `repair` (dry-run/main plus `--save-history`), `history`, `backup list/restore/prune` in both JSON and human-readable modes.
+  - Plus `resume-doctor` for explaining why default `codex resume` / `/resume` cannot see a session and for surfacing direct recovery commands.
   - GUI: Dashboard scan/preview/execute flows, Backups tab (list + restore), History tab (list + detail), and guards for empty/no-selection states.
   - Core: repair history persistence, backup manifest snapshots, `history.jsonl` / `logs_1.sqlite` state visibility, and extended test coverage across repair/diagnosis/backup/history pipelines.
 - **Verification**: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test` all pass on current tree.
@@ -122,6 +123,24 @@ codex-doctor diagnose --codex-home ~/.codex
 With an explicit SQLite home override:
 ```bash
 codex-doctor diagnose --codex-home ~/.codex --sqlite-home ~/.codex-sqlite --json
+```
+
+### Explain why `/resume` is empty
+
+```bash
+codex-doctor resume-doctor --codex-home ~/.codex
+```
+
+This command reports:
+- which local sessions still exist,
+- whether they are visible to the default `/resume` picker,
+- which blocker applies (`provider mismatch`, `cwd mismatch`, `archived`, `missing sqlite row`),
+- and the direct recovery command when possible.
+
+If you want to simulate opening Codex from a specific directory:
+
+```bash
+codex-doctor resume-doctor --codex-home ~/.codex --current-cwd /path/to/project --json
 ```
 
 ### Preview repair plan (dry-run)

@@ -5,18 +5,18 @@ use std::process;
 
 use clap::{Args, Parser, Subcommand};
 use doctor_core::{
-    build_repair_plan, diagnose, execute_repair_plan_with_sqlite_home, list_backups,
-    list_repair_history, prune_backups, restore_backup_with_sqlite_home, save_repair_history,
-    scan_codex_home_with_sqlite_home, BackupManifest, BackupSnapshot, DiagnosisProblem,
-    DiagnosisReport, ProblemCode, ProblemSeverity, RepairAction, RepairExecutionEntry,
-    RepairExecutionReport, RepairPlan, RolloutRecord, ScanReport, SqliteThreadRecord,
-    ThreadLocation,
+    build_repair_plan, build_resume_doctor_report, diagnose, execute_repair_plan_with_sqlite_home,
+    list_backups, list_repair_history, prune_backups, restore_backup_with_sqlite_home,
+    save_repair_history, scan_codex_home_with_sqlite_home, BackupManifest, BackupSnapshot,
+    DiagnosisProblem, DiagnosisReport, ProblemCode, ProblemSeverity, RepairAction,
+    RepairExecutionEntry, RepairExecutionReport, RepairPlan, ResumeBlocker, ResumeCandidate,
+    ResumeDoctorReport, RolloutRecord, ScanReport, SqliteThreadRecord, ThreadLocation,
 };
 use serde_json::{json, Value};
 
 use output::{
     print_backup_list_human, print_diagnosis_report_human, print_repair_execution_human,
-    print_repair_history_human, print_scan_report_human,
+    print_repair_history_human, print_resume_doctor_human, print_scan_report_human,
 };
 
 #[derive(Parser)]
@@ -31,6 +31,7 @@ struct Cli {
 enum Commands {
     Scan(ScanArgs),
     Diagnose(DiagnoseArgs),
+    ResumeDoctor(ResumeDoctorArgs),
     Repair(RepairArgs),
     Backup {
         #[command(subcommand)]
@@ -55,6 +56,18 @@ struct DiagnoseArgs {
     codex_home: PathBuf,
     #[arg(long)]
     sqlite_home: Option<PathBuf>,
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args)]
+struct ResumeDoctorArgs {
+    #[arg(long)]
+    codex_home: PathBuf,
+    #[arg(long)]
+    sqlite_home: Option<PathBuf>,
+    #[arg(long)]
+    current_cwd: Option<PathBuf>,
     #[arg(long)]
     json: bool,
 }
@@ -148,6 +161,20 @@ fn run() -> Result<(), String> {
                 print_json(&diagnosis_to_json(&diagnosis))?;
             } else {
                 print_diagnosis_report_human(&diagnosis.problems);
+            }
+        }
+        Commands::ResumeDoctor(args) => {
+            let report =
+                scan_codex_home_with_sqlite_home(&args.codex_home, args.sqlite_home.as_deref())?;
+            let current_cwd = match args.current_cwd {
+                Some(path) => path,
+                None => std::env::current_dir().map_err(|err| err.to_string())?,
+            };
+            let resume_report = build_resume_doctor_report(&report, &current_cwd);
+            if args.json {
+                print_json(&resume_doctor_report_to_json(&resume_report))?;
+            } else {
+                print_resume_doctor_human(&resume_report);
             }
         }
         Commands::Repair(args) => {
@@ -306,6 +333,14 @@ fn diagnosis_to_json(diagnosis: &DiagnosisReport) -> Value {
     })
 }
 
+fn resume_doctor_report_to_json(report: &ResumeDoctorReport) -> Value {
+    json!({
+        "current_cwd": report.current_cwd,
+        "root_provider": report.root_provider,
+        "candidates": report.candidates.iter().map(resume_candidate_to_json).collect::<Vec<_>>(),
+    })
+}
+
 fn repair_execution_report_to_json(report: &RepairExecutionReport, plan: &RepairPlan) -> Value {
     json!({
         "backup": report.backup.as_ref().map(backup_snapshot_to_json),
@@ -326,6 +361,45 @@ fn diagnosis_problem_to_json(problem: &DiagnosisProblem) -> Value {
         "evidence": problem.evidence,
         "suggested_fix_ids": problem.suggested_fix_ids,
     })
+}
+
+fn resume_candidate_to_json(candidate: &ResumeCandidate) -> Value {
+    json!({
+        "thread_id": candidate.thread_id,
+        "provider": candidate.provider,
+        "cwd": candidate.cwd,
+        "location": thread_location_to_str(&candidate.location),
+        "default_picker_visible": candidate.default_picker_visible,
+        "blockers": candidate.blockers.iter().map(resume_blocker_to_json).collect::<Vec<_>>(),
+        "direct_resume_command": candidate.direct_resume_command,
+    })
+}
+
+fn resume_blocker_to_json(blocker: &ResumeBlocker) -> Value {
+    match blocker {
+        ResumeBlocker::MissingSqliteThreadRow => json!({
+            "type": "missing_sqlite_thread_row"
+        }),
+        ResumeBlocker::Archived => json!({
+            "type": "archived"
+        }),
+        ResumeBlocker::ProviderMismatch {
+            session_provider,
+            current_provider,
+        } => json!({
+            "type": "provider_mismatch",
+            "session_provider": session_provider,
+            "current_provider": current_provider,
+        }),
+        ResumeBlocker::CwdMismatch {
+            session_cwd,
+            current_cwd,
+        } => json!({
+            "type": "cwd_mismatch",
+            "session_cwd": session_cwd,
+            "current_cwd": current_cwd,
+        }),
+    }
 }
 
 fn repair_execution_entry_to_json(entry: &RepairExecutionEntry) -> Value {

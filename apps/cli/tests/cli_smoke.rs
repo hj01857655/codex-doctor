@@ -321,6 +321,61 @@ fn diagnose_text_reports_direct_resume_recovery_guidance() {
 }
 
 #[test]
+fn resume_doctor_json_reports_hidden_candidate_and_command() {
+    let codex_home = prepare_codex_home();
+    let rollout_path = codex_home
+        .path()
+        .join("sessions")
+        .join("rollout-2026-01-27T12-34-56-00000000-0000-0000-0000-000000000123.jsonl");
+    rewrite_rollout_provider(&rollout_path, "anthropic");
+    update_thread_provider(
+        &codex_home.path().join("state_5.sqlite"),
+        "00000000-0000-0000-0000-000000000123",
+        "anthropic",
+        None,
+    );
+
+    let output = run_cli(&[
+        "resume-doctor",
+        "--codex-home",
+        codex_home.path().to_str().expect("codex home path"),
+        "--current-cwd",
+        "/workspace/active",
+        "--json",
+    ]);
+
+    let candidate = &output["candidates"][0];
+    assert_eq!(
+        candidate["direct_resume_command"],
+        "codex resume 00000000-0000-0000-0000-000000000123"
+    );
+    assert_eq!(candidate["default_picker_visible"], false);
+    assert!(candidate["blockers"]
+        .as_array()
+        .expect("blockers")
+        .iter()
+        .any(|item| item["type"] == "provider_mismatch"));
+}
+
+#[test]
+fn resume_doctor_text_reports_visibility_and_blockers() {
+    let codex_home = prepare_codex_home();
+
+    let output = run_cli_text(&[
+        "resume-doctor",
+        "--codex-home",
+        codex_home.path().to_str().expect("codex home path"),
+        "--current-cwd",
+        "/workspace/other",
+    ]);
+
+    assert!(output.contains("Codex Doctor - Resume Doctor"));
+    assert!(output.contains("Default /resume visibility: hidden"));
+    assert!(output.contains("cwd mismatch"));
+    assert!(output.contains("codex resume 00000000-0000-0000-0000-000000000123"));
+}
+
+#[test]
 fn repair_dry_run_json_outputs_execution_report() {
     let codex_home = prepare_codex_home();
     let backups_root = tempdir().expect("create backups root");

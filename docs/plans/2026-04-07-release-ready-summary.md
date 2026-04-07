@@ -14,6 +14,7 @@
 
 - `codex-doctor scan --codex-home <path>`
 - `codex-doctor diagnose --codex-home <path>`
+- `codex-doctor resume-doctor --codex-home <path>`
 - `codex-doctor repair --codex-home <path> --backups-root <path>`
 - `codex-doctor repair --codex-home <path> --backups-root <path> --dry-run`
 - `codex-doctor repair --codex-home <path> --backups-root <path> --save-history`
@@ -51,6 +52,10 @@
 - `ArchivedStateMismatch`
 - `ResumePickerProviderFiltered`
 - `ResumePickerArchivedFiltered`
+
+并补充了一个可交付的 resume 可见性检查入口：
+
+- `resume-doctor`：列出候选 session、默认 `/resume` 可见性、隐藏原因和直接恢复命令
 - `MissingRootModelProvider`
 - `MissingLogsSqlite`
 - `UnreadableLogsSqlite`

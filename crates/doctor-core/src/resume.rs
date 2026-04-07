@@ -1,0 +1,103 @@
+use std::path::{Path, PathBuf};
+
+use crate::{ProblemCode, ScanReport, ThreadLocation};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResumeBlocker {
+    MissingSqliteThreadRow,
+    Archived,
+    ProviderMismatch {
+        session_provider: String,
+        current_provider: String,
+    },
+    CwdMismatch {
+        session_cwd: PathBuf,
+        current_cwd: PathBuf,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResumeCandidate {
+    pub thread_id: String,
+    pub provider: Option<String>,
+    pub cwd: PathBuf,
+    pub location: ThreadLocation,
+    pub default_picker_visible: bool,
+    pub blockers: Vec<ResumeBlocker>,
+    pub direct_resume_command: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResumeDoctorReport {
+    pub current_cwd: PathBuf,
+    pub root_provider: Option<String>,
+    pub candidates: Vec<ResumeCandidate>,
+}
+
+pub fn build_resume_doctor_report(
+    scan_report: &ScanReport,
+    current_cwd: &Path,
+) -> ResumeDoctorReport {
+    let mut candidates = Vec::new();
+
+    for rollout in &scan_report.rollout_records {
+        let sqlite_row = scan_report
+            .sqlite_threads
+            .iter()
+            .find(|thread| thread.id == rollout.thread_id);
+
+        let mut blockers = Vec::new();
+        if sqlite_row.is_none() {
+            blockers.push(ResumeBlocker::MissingSqliteThreadRow);
+        }
+
+        if matches!(rollout.location, ThreadLocation::Archived) || rollout.archived {
+            blockers.push(ResumeBlocker::Archived);
+        }
+
+        if let (Some(current_provider), Some(session_provider)) = (
+            scan_report.summary.root_provider.as_ref(),
+            rollout.session_meta.provider.as_ref(),
+        ) {
+            if session_provider != current_provider {
+                blockers.push(ResumeBlocker::ProviderMismatch {
+                    session_provider: session_provider.clone(),
+                    current_provider: current_provider.clone(),
+                });
+            }
+        }
+
+        if rollout.session_meta.cwd != current_cwd {
+            blockers.push(ResumeBlocker::CwdMismatch {
+                session_cwd: rollout.session_meta.cwd.clone(),
+                current_cwd: current_cwd.to_path_buf(),
+            });
+        }
+
+        candidates.push(ResumeCandidate {
+            thread_id: rollout.thread_id.clone(),
+            provider: rollout.session_meta.provider.clone(),
+            cwd: rollout.session_meta.cwd.clone(),
+            location: rollout.location.clone(),
+            default_picker_visible: blockers.is_empty(),
+            blockers,
+            direct_resume_command: sqlite_row
+                .map(|_| format!("codex resume {}", rollout.thread_id)),
+        });
+    }
+
+    candidates.sort_by(|left, right| left.thread_id.cmp(&right.thread_id));
+
+    ResumeDoctorReport {
+        current_cwd: current_cwd.to_path_buf(),
+        root_provider: scan_report.summary.root_provider.clone(),
+        candidates,
+    }
+}
+
+pub fn diagnosis_problem_matches_resume_visibility(code: &ProblemCode) -> bool {
+    matches!(
+        code,
+        ProblemCode::ResumePickerProviderFiltered | ProblemCode::ResumePickerArchivedFiltered
+    )
+}

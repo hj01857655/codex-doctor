@@ -6,6 +6,7 @@ mod layout;
 mod model;
 mod plan;
 mod repair;
+mod resume;
 mod rollout;
 mod scan;
 mod sqlite;
@@ -26,6 +27,10 @@ pub use plan::{build_repair_plan, RepairAction, RepairPlan};
 pub use repair::{
     execute_repair_plan, execute_repair_plan_with_sqlite_home, RepairExecutionEntry,
     RepairExecutionReport,
+};
+pub use resume::{
+    build_resume_doctor_report, diagnosis_problem_matches_resume_visibility, ResumeBlocker,
+    ResumeCandidate, ResumeDoctorReport,
 };
 pub use rollout::{move_rollout_file, rewrite_rollout_provider};
 pub use scan::{
