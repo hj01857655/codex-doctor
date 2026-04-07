@@ -49,6 +49,8 @@
 - `StaleSqliteRolloutPath`
 - `RolloutProviderMismatch`
 - `ArchivedStateMismatch`
+- `ResumePickerProviderFiltered`
+- `ResumePickerArchivedFiltered`
 - `MissingRootModelProvider`
 - `MissingLogsSqlite`
 - `UnreadableLogsSqlite`

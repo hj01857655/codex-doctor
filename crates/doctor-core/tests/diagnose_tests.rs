@@ -109,6 +109,41 @@ fn flags_archived_state_mismatch() {
 }
 
 #[test]
+fn flags_resume_picker_provider_filtered() {
+    let mut report = base_report();
+    report.rollout_records[0].session_meta.provider = Some("anthropic".to_string());
+    report.sqlite_threads[0].model_provider = "anthropic".to_string();
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::ResumePickerProviderFiltered));
+}
+
+#[test]
+fn flags_resume_picker_archived_filtered() {
+    let mut report = base_report();
+    report.rollout_records[0].location = ThreadLocation::Archived;
+    report.rollout_records[0].archived = true;
+    report.sqlite_threads[0].archived_at = Some(1_700_000_200);
+    report.summary.active_rollout_count = 0;
+    report.summary.archived_rollout_count = 1;
+
+    let diagnosis = diagnose(&report);
+
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::ResumePickerArchivedFiltered));
+    assert!(!diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::ArchivedStateMismatch));
+}
+
+#[test]
 fn flags_missing_root_model_provider() {
     let mut report = base_report();
     report.summary.root_provider = None;

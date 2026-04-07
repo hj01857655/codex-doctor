@@ -445,6 +445,8 @@ fn problem_code_to_str(code: &ProblemCode) -> &'static str {
         ProblemCode::StaleSqliteRolloutPath => "stale_sqlite_rollout_path",
         ProblemCode::RolloutProviderMismatch => "rollout_provider_mismatch",
         ProblemCode::ArchivedStateMismatch => "archived_state_mismatch",
+        ProblemCode::ResumePickerProviderFiltered => "resume_picker_provider_filtered",
+        ProblemCode::ResumePickerArchivedFiltered => "resume_picker_archived_filtered",
         ProblemCode::MissingRootModelProvider => "missing_root_model_provider",
         ProblemCode::MissingLogsSqlite => "missing_logs_sqlite",
         ProblemCode::UnreadableLogsSqlite => "unreadable_logs_sqlite",

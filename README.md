@@ -19,6 +19,8 @@ A cross-platform CLI and GUI tool for diagnosing and repairing local Codex state
 `codex-doctor` helps you fix common problems with your local `.codex` directory:
 
 - Sessions not visible after switching providers
+- Sessions present on disk but hidden from the default resume picker because the current `model_provider` changed
+- Archived sessions that still exist but will not show up in the default resume picker
 - Mismatched data between `sessions/`, `archived_sessions/`, and SQLite
 - Stale rollout paths in the SQLite index
 - Missing or inconsistent configuration
@@ -112,6 +114,10 @@ codex-doctor scan --codex-home ~/.codex --sqlite-home ~/.codex-sqlite --json
 ```bash
 codex-doctor diagnose --codex-home ~/.codex
 ```
+
+`diagnose` now also distinguishes between:
+- sessions that are actually broken because local state drifted, and
+- sessions that still exist but are likely hidden from default `codex resume` / `/resume` flows by provider or archived filtering.
 
 With an explicit SQLite home override:
 ```bash

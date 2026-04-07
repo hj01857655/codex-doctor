@@ -135,6 +135,25 @@ fn insert_thread(
         .expect("insert thread");
 }
 
+fn update_thread_provider(path: &Path, id: &str, provider: &str, archived_at: Option<i64>) {
+    let connection = Connection::open(path).expect("open sqlite");
+    connection
+        .execute(
+            "UPDATE threads SET model_provider = ?1, archived_at = ?2 WHERE id = ?3",
+            params![provider, archived_at, id],
+        )
+        .expect("update thread provider");
+}
+
+fn rewrite_rollout_provider(path: &Path, provider: &str) {
+    let content = fs::read_to_string(path).expect("read rollout");
+    let updated = content.replace(
+        "\"model_provider\":\"openai\"",
+        &format!("\"model_provider\":\"{provider}\""),
+    );
+    fs::write(path, updated).expect("write rollout");
+}
+
 #[test]
 fn gui_layer_builds_summary_view_model_from_core_scan() {
     let codex_home = prepare_codex_home();
@@ -233,6 +252,29 @@ fn refresh_uses_sqlite_home_override() {
         .summary_items
         .iter()
         .any(|item| item.label == "Active sessions" && item.value == "1"));
+}
+
+#[test]
+fn dashboard_surfaces_resume_picker_provider_filtered_problem() {
+    let codex_home = prepare_codex_home();
+    let rollout_path = codex_home
+        .path()
+        .join("sessions")
+        .join("rollout-2026-01-27T12-34-56-00000000-0000-0000-0000-000000000123.jsonl");
+    rewrite_rollout_provider(&rollout_path, "anthropic");
+    update_thread_provider(
+        &codex_home.path().join("state_5.sqlite"),
+        "00000000-0000-0000-0000-000000000123",
+        "anthropic",
+        None,
+    );
+
+    let view_model = load_dashboard_view_model(codex_home.path()).expect("load dashboard");
+
+    assert!(view_model
+        .problems
+        .iter()
+        .any(|problem| problem.code == "resume_picker_provider_filtered"));
 }
 
 #[test]

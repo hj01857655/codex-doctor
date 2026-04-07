@@ -130,6 +130,25 @@ fn insert_thread(
         .expect("insert thread");
 }
 
+fn update_thread_provider(path: &Path, id: &str, provider: &str, archived_at: Option<i64>) {
+    let connection = Connection::open(path).expect("open sqlite");
+    connection
+        .execute(
+            "UPDATE threads SET model_provider = ?1, archived_at = ?2 WHERE id = ?3",
+            params![provider, archived_at, id],
+        )
+        .expect("update thread provider");
+}
+
+fn rewrite_rollout_provider(path: &Path, provider: &str) {
+    let content = fs::read_to_string(path).expect("read rollout");
+    let updated = content.replace(
+        "\"model_provider\":\"openai\"",
+        &format!("\"model_provider\":\"{provider}\""),
+    );
+    fs::write(path, updated).expect("write rollout");
+}
+
 fn run_cli(args: &[&str]) -> Value {
     let output = Command::new(env!("CARGO_BIN_EXE_codex-doctor"))
         .args(args)
@@ -241,6 +260,38 @@ fn diagnose_without_json_outputs_human_readable_report() {
     assert!(output.contains("Codex Doctor - Diagnosis Report"));
     assert!(output.contains("Found"));
     assert!(output.contains("MissingRootModelProvider"));
+}
+
+#[test]
+fn diagnose_json_reports_resume_picker_provider_filtered() {
+    let codex_home = prepare_codex_home();
+    let rollout_path = codex_home
+        .path()
+        .join("sessions")
+        .join("rollout-2026-01-27T12-34-56-00000000-0000-0000-0000-000000000123.jsonl");
+    rewrite_rollout_provider(&rollout_path, "anthropic");
+    update_thread_provider(
+        &codex_home.path().join("state_5.sqlite"),
+        "00000000-0000-0000-0000-000000000123",
+        "anthropic",
+        None,
+    );
+
+    let output = run_cli(&[
+        "diagnose",
+        "--codex-home",
+        codex_home.path().to_str().expect("codex home path"),
+        "--json",
+    ]);
+
+    let codes = output["problems"]
+        .as_array()
+        .expect("problems array")
+        .iter()
+        .map(|problem| problem["code"].as_str().expect("problem code"))
+        .collect::<Vec<_>>();
+
+    assert!(codes.contains(&"resume_picker_provider_filtered"));
 }
 
 #[test]

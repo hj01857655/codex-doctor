@@ -140,6 +140,43 @@ fn maps_provider_mismatch_to_rewrite_and_upsert_actions() {
 }
 
 #[test]
+fn resume_picker_provider_filtered_is_report_only() {
+    let mut report = base_report();
+    report.rollout_records[0].session_meta.provider = Some("anthropic".to_string());
+    report.sqlite_threads[0].model_provider = "anthropic".to_string();
+
+    let diagnosis = diagnose(&report);
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::ResumePickerProviderFiltered));
+
+    let plan = build_repair_plan(&report, &diagnosis);
+
+    assert!(plan.actions.is_empty());
+}
+
+#[test]
+fn resume_picker_archived_filtered_is_report_only() {
+    let mut report = base_report();
+    report.rollout_records[0].location = ThreadLocation::Archived;
+    report.rollout_records[0].archived = true;
+    report.sqlite_threads[0].archived_at = Some(1_700_000_200);
+    report.summary.active_rollout_count = 0;
+    report.summary.archived_rollout_count = 1;
+
+    let diagnosis = diagnose(&report);
+    assert!(diagnosis
+        .problems
+        .iter()
+        .any(|problem| problem.code == ProblemCode::ResumePickerArchivedFiltered));
+
+    let plan = build_repair_plan(&report, &diagnosis);
+
+    assert!(plan.actions.is_empty());
+}
+
+#[test]
 fn maps_missing_root_provider_to_patch_action_and_renders_summary() {
     let mut report = base_report();
     report.summary.root_provider = None;

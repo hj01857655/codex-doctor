@@ -13,6 +13,7 @@
 这些问题会表现为：
 
 - session 不可见
+- provider 切换后 `codex resume` / `/resume` 看起来像“丢 session”
 - 归档状态异常
 - provider 显示错误
 - repair 失败且用户不知道下一步该做什么
@@ -128,11 +129,18 @@ CLI 和 GUI 都只消费这层能力。
 - `StaleSqliteRolloutPath`
 - `RolloutProviderMismatch`
 - `ArchivedStateMismatch`
+- `ResumePickerProviderFiltered`
+- `ResumePickerArchivedFiltered`
 - `MissingRootModelProvider`
 - `MissingLogsSqlite`
 - `UnreadableLogsSqlite`
 - `MissingHistoryJsonl`
 - `UnreadableHistoryJsonl`
+
+其中：
+
+- `ResumePickerProviderFiltered` 用来解释“session 还在，但当前 root provider 变化后，默认 resume picker 可能把它过滤掉”
+- `ResumePickerArchivedFiltered` 用来解释“session 已归档，默认 resume picker 只列非归档会话”
 
 ### 6.3 修复动作
 
