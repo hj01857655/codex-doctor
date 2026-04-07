@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use doctor_core::{
-    build_resume_doctor_report, ProviderDistribution, RolloutRecord, RolloutSessionMeta,
-    RootConfigSnapshot, ScanReport, ScanSummary, SqliteThreadRecord, ThreadLocation,
+    best_resume_candidate_for_current_cwd, build_resume_doctor_report, ProviderDistribution,
+    RolloutRecord, RolloutSessionMeta, RootConfigSnapshot, ScanReport, ScanSummary,
+    SqliteThreadRecord, ThreadLocation,
 };
 
 fn base_report() -> ScanReport {
@@ -112,4 +113,32 @@ fn missing_sqlite_row_removes_direct_resume_command() {
         .iter()
         .any(|blocker| matches!(blocker, doctor_core::ResumeBlocker::MissingSqliteThreadRow)));
     assert!(candidate.direct_resume_command.is_none());
+}
+
+#[test]
+fn best_resume_candidate_prefers_latest_match_in_current_cwd() {
+    let mut report = base_report();
+    report.rollout_records.push(RolloutRecord {
+        thread_id: "thr_456".to_string(),
+        rollout_path: PathBuf::from("/tmp/sessions/rollout-456.jsonl"),
+        session_meta: RolloutSessionMeta {
+            provider: Some("openai".to_string()),
+            cwd: PathBuf::from("/workspace/active"),
+            timestamp: "2026-01-27T13:34:56Z".to_string(),
+        },
+        location: ThreadLocation::Active,
+        archived: false,
+    });
+    report.sqlite_threads.push(SqliteThreadRecord {
+        id: "thr_456".to_string(),
+        rollout_path: PathBuf::from("/tmp/sessions/rollout-456.jsonl"),
+        model_provider: "openai".to_string(),
+        archived_at: None,
+        cwd: PathBuf::from("/workspace/active"),
+    });
+
+    let resume = build_resume_doctor_report(&report, &PathBuf::from("/workspace/active"));
+    let best = best_resume_candidate_for_current_cwd(&resume).expect("best candidate");
+
+    assert_eq!(best.thread_id, "thr_456");
 }

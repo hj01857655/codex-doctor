@@ -29,8 +29,9 @@ pub use repair::{
     RepairExecutionReport,
 };
 pub use resume::{
-    build_resume_doctor_report, diagnosis_problem_matches_resume_visibility, ResumeBlocker,
-    ResumeCandidate, ResumeDoctorReport,
+    best_resume_candidate_for_current_cwd, build_resume_doctor_report,
+    diagnosis_problem_matches_resume_visibility, ResumeBlocker, ResumeCandidate,
+    ResumeDoctorReport,
 };
 pub use rollout::{move_rollout_file, rewrite_rollout_provider};
 pub use scan::{

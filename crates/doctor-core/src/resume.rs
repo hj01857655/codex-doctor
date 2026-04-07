@@ -21,6 +21,7 @@ pub struct ResumeCandidate {
     pub thread_id: String,
     pub provider: Option<String>,
     pub cwd: PathBuf,
+    pub timestamp: String,
     pub location: ThreadLocation,
     pub default_picker_visible: bool,
     pub blockers: Vec<ResumeBlocker>,
@@ -78,6 +79,7 @@ pub fn build_resume_doctor_report(
             thread_id: rollout.thread_id.clone(),
             provider: rollout.session_meta.provider.clone(),
             cwd: rollout.session_meta.cwd.clone(),
+            timestamp: rollout.session_meta.timestamp.clone(),
             location: rollout.location.clone(),
             default_picker_visible: blockers.is_empty(),
             blockers,
@@ -100,4 +102,16 @@ pub fn diagnosis_problem_matches_resume_visibility(code: &ProblemCode) -> bool {
         code,
         ProblemCode::ResumePickerProviderFiltered | ProblemCode::ResumePickerArchivedFiltered
     )
+}
+
+pub fn best_resume_candidate_for_current_cwd(
+    report: &ResumeDoctorReport,
+) -> Option<&ResumeCandidate> {
+    report
+        .candidates
+        .iter()
+        .filter(|candidate| {
+            candidate.cwd == report.current_cwd && candidate.direct_resume_command.is_some()
+        })
+        .max_by(|left, right| left.timestamp.cmp(&right.timestamp))
 }

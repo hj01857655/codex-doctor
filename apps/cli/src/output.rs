@@ -229,8 +229,8 @@ pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
         return;
     }
 
-    for candidate in &report.candidates {
-        println!("• Thread: {}", candidate.thread_id);
+    for (index, candidate) in report.candidates.iter().enumerate() {
+        println!("{}. Thread: {}", index + 1, candidate.thread_id);
         println!(
             "  Provider: {}",
             candidate.provider.as_deref().unwrap_or("(unknown)")
@@ -260,6 +260,11 @@ pub fn print_resume_doctor_human(report: &ResumeDoctorReport) {
         }
         println!();
     }
+
+    println!(
+        "Enter a candidate number to run `codex resume <thread_id>`, or press Enter to cancel."
+    );
+    println!();
 }
 
 fn print_rollout_record(record: &RolloutRecord, is_last: bool) {

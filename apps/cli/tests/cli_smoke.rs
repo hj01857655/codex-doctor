@@ -205,6 +205,32 @@ fn run_cli_text(args: &[&str]) -> String {
     String::from_utf8(output.stdout).expect("parse stdout as utf8")
 }
 
+fn run_cli_text_with_input_and_env(args: &[&str], input: &str, envs: &[(&str, &str)]) -> String {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_codex-doctor"));
+    command.args(args);
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    command.stdin(std::process::Stdio::piped());
+    command.stdout(std::process::Stdio::piped());
+    command.stderr(std::process::Stdio::piped());
+
+    let mut child = command.spawn().expect("spawn cli");
+    {
+        use std::io::Write;
+        let mut stdin = child.stdin.take().expect("stdin");
+        stdin.write_all(input.as_bytes()).expect("write cli stdin");
+    }
+    let output = child.wait_with_output().expect("wait cli");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).expect("parse stdout as utf8")
+}
+
 fn run_cli_with_env(args: &[&str], envs: &[(&str, &str)]) -> Value {
     let mut command = Command::new(env!("CARGO_BIN_EXE_codex-doctor"));
     command.args(args);
@@ -405,13 +431,17 @@ fn resume_doctor_json_reports_hidden_candidate_and_command() {
 fn resume_doctor_text_reports_visibility_and_blockers() {
     let codex_home = prepare_codex_home();
 
-    let output = run_cli_text(&[
-        "resume-doctor",
-        "--codex-home",
-        codex_home.path().to_str().expect("codex home path"),
-        "--current-cwd",
-        "/workspace/other",
-    ]);
+    let output = run_cli_text_with_input_and_env(
+        &[
+            "resume-doctor",
+            "--codex-home",
+            codex_home.path().to_str().expect("codex home path"),
+            "--current-cwd",
+            "/workspace/other",
+        ],
+        "\n",
+        &[],
+    );
 
     assert!(output.contains("Codex Doctor - Resume Doctor"));
     assert!(output.contains("Default /resume visibility: hidden"));
@@ -444,6 +474,39 @@ fn resume_doctor_uses_default_codex_home_without_explicit_path() {
         "codex resume 00000000-0000-0000-0000-000000000123"
     );
     assert_eq!(output["candidates"][0]["default_picker_visible"], true);
+}
+
+#[test]
+fn resume_doctor_executes_selected_resume_command() {
+    let codex_home = prepare_codex_home();
+    let temp = tempdir().expect("create exec tempdir");
+    let log_path = temp.path().join("resume.log");
+    let script_path = temp.path().join("fake-codex.cmd");
+    let script = format!(
+        "@echo off\r\necho %* > \"{}\"\r\nexit /b 0\r\n",
+        log_path.display()
+    );
+    fs::write(&script_path, script).expect("write fake codex");
+
+    let output = run_cli_text_with_input_and_env(
+        &[
+            "resume-doctor",
+            "--codex-home",
+            codex_home.path().to_str().expect("codex home path"),
+            "--current-cwd",
+            "/workspace/active",
+        ],
+        "1\n",
+        &[(
+            "CODEX_DOCTOR_CODEX_BIN",
+            script_path.to_str().expect("script path"),
+        )],
+    );
+
+    let logged = fs::read_to_string(&log_path).expect("read log");
+    assert!(output.contains("Select session [1]:"));
+    assert!(output.contains("Running: codex resume 00000000-0000-0000-0000-000000000123"));
+    assert!(logged.contains("resume 00000000-0000-0000-0000-000000000123"));
 }
 
 #[test]

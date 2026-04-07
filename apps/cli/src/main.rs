@@ -1,17 +1,20 @@
 mod output;
 
 use std::env;
+use std::ffi::OsString;
+use std::io::{self, Write};
 use std::path::PathBuf;
-use std::process;
+use std::process::{self, Command};
 
 use clap::{Args, Parser, Subcommand};
 use doctor_core::{
-    build_repair_plan, build_resume_doctor_report, diagnose, execute_repair_plan_with_sqlite_home,
-    list_backups, list_repair_history, prune_backups, restore_backup_with_sqlite_home,
-    save_repair_history, scan_codex_home_with_sqlite_home, BackupManifest, BackupSnapshot,
-    DiagnosisProblem, DiagnosisReport, ProblemCode, ProblemSeverity, RepairAction,
-    RepairExecutionEntry, RepairExecutionReport, RepairPlan, ResumeBlocker, ResumeCandidate,
-    ResumeDoctorReport, RolloutRecord, ScanReport, SqliteThreadRecord, ThreadLocation,
+    best_resume_candidate_for_current_cwd, build_repair_plan, build_resume_doctor_report, diagnose,
+    execute_repair_plan_with_sqlite_home, list_backups, list_repair_history, prune_backups,
+    restore_backup_with_sqlite_home, save_repair_history, scan_codex_home_with_sqlite_home,
+    BackupManifest, BackupSnapshot, DiagnosisProblem, DiagnosisReport, ProblemCode,
+    ProblemSeverity, RepairAction, RepairExecutionEntry, RepairExecutionReport, RepairPlan,
+    ResumeBlocker, ResumeCandidate, ResumeDoctorReport, RolloutRecord, ScanReport,
+    SqliteThreadRecord, ThreadLocation,
 };
 use serde_json::{json, Value};
 
@@ -180,6 +183,13 @@ fn run() -> Result<(), String> {
                 print_json(&resume_doctor_report_to_json(&resume_report))?;
             } else {
                 print_resume_doctor_human(&resume_report);
+                if let Some(candidate) = best_resume_candidate_for_current_cwd(&resume_report) {
+                    if let Some(selected_index) =
+                        prompt_resume_selection(&resume_report, candidate.thread_id.as_str())?
+                    {
+                        execute_resume_candidate(&resume_report.candidates[selected_index])?;
+                    }
+                }
             }
         }
         Commands::Repair(args) => {
@@ -295,6 +305,71 @@ fn default_codex_home() -> Result<PathBuf, String> {
     Ok(home.join(".codex"))
 }
 
+fn resolve_codex_binary() -> OsString {
+    env::var_os("CODEX_DOCTOR_CODEX_BIN").unwrap_or_else(|| OsString::from("codex"))
+}
+
+fn prompt_resume_selection(
+    report: &ResumeDoctorReport,
+    default_thread_id: &str,
+) -> Result<Option<usize>, String> {
+    let default_index = report
+        .candidates
+        .iter()
+        .position(|candidate| candidate.thread_id == default_thread_id)
+        .unwrap_or(0);
+
+    print!("Select session [{}]: ", default_index + 1);
+    io::stdout().flush().map_err(|err| err.to_string())?;
+
+    let mut input = String::new();
+    let bytes_read = io::stdin()
+        .read_line(&mut input)
+        .map_err(|err| err.to_string())?;
+    if bytes_read == 0 {
+        return Ok(None);
+    }
+
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Ok(Some(default_index));
+    }
+
+    let selection = trimmed
+        .parse::<usize>()
+        .map_err(|_| "invalid resume selection".to_string())?;
+    if selection == 0 || selection > report.candidates.len() {
+        return Err("resume selection out of range".to_string());
+    }
+
+    Ok(Some(selection - 1))
+}
+
+fn execute_resume_candidate(candidate: &ResumeCandidate) -> Result<(), String> {
+    if candidate.direct_resume_command.is_none() {
+        return Err(format!(
+            "selected session {} cannot be resumed directly because sqlite thread metadata is missing",
+            candidate.thread_id
+        ));
+    }
+
+    println!("Running: codex resume {}", candidate.thread_id);
+    let status = Command::new(resolve_codex_binary())
+        .arg("resume")
+        .arg(&candidate.thread_id)
+        .status()
+        .map_err(|err| err.to_string())?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "codex resume {} exited with status {}",
+            candidate.thread_id, status
+        ))
+    }
+}
+
 fn print_json(value: &Value) -> Result<(), String> {
     let text = serde_json::to_string_pretty(value).map_err(|err| err.to_string())?;
     println!("{text}");
@@ -383,6 +458,7 @@ fn resume_candidate_to_json(candidate: &ResumeCandidate) -> Value {
         "thread_id": candidate.thread_id,
         "provider": candidate.provider,
         "cwd": candidate.cwd,
+        "timestamp": candidate.timestamp,
         "location": thread_location_to_str(&candidate.location),
         "default_picker_visible": candidate.default_picker_visible,
         "blockers": candidate.blockers.iter().map(resume_blocker_to_json).collect::<Vec<_>>(),
