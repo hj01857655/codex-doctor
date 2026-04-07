@@ -195,6 +195,31 @@ fn rewrite_rollout_provider(path: &Path, provider: &str) {
     fs::write(path, updated).expect("write rollout");
 }
 
+fn write_fake_codex_script(path: &Path, log_path: &Path) {
+    #[cfg(windows)]
+    let script = format!(
+        "@echo off\r\necho %* > \"{}\"\r\nexit /b 0\r\n",
+        log_path.display()
+    );
+
+    #[cfg(not(windows))]
+    let script = format!(
+        "#!/usr/bin/env sh\nprintf '%s\\n' \"$*\" > \"{}\"\n",
+        log_path.display()
+    );
+
+    fs::write(path, script).expect("write fake codex");
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut perms = fs::metadata(path).expect("script metadata").permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(path, perms).expect("chmod fake codex");
+    }
+}
+
 fn run_cli(args: &[&str]) -> Value {
     let output = Command::new(env!("CARGO_BIN_EXE_codex-doctor"))
         .args(args)
@@ -559,11 +584,7 @@ fn resume_doctor_executes_selected_resume_command() {
     let temp = tempdir().expect("create exec tempdir");
     let log_path = temp.path().join("resume.log");
     let script_path = temp.path().join("fake-codex.cmd");
-    let script = format!(
-        "@echo off\r\necho %* > \"{}\"\r\nexit /b 0\r\n",
-        log_path.display()
-    );
-    fs::write(&script_path, script).expect("write fake codex");
+    write_fake_codex_script(&script_path, &log_path);
 
     let output = run_cli_text_with_input_and_env(
         &[
@@ -592,11 +613,7 @@ fn resume_doctor_enter_cancels_without_running_resume() {
     let temp = tempdir().expect("create exec tempdir");
     let log_path = temp.path().join("resume-cancel.log");
     let script_path = temp.path().join("fake-codex.cmd");
-    let script = format!(
-        "@echo off\r\necho %* > \"{}\"\r\nexit /b 0\r\n",
-        log_path.display()
-    );
-    fs::write(&script_path, script).expect("write fake codex");
+    write_fake_codex_script(&script_path, &log_path);
 
     let output = run_cli_text_with_input_and_env(
         &[
@@ -627,11 +644,7 @@ fn resume_doctor_finds_codex_cmd_from_userprofile_without_path_entry() {
     fs::create_dir_all(&npm_dir).expect("create npm dir");
     let log_path = temp.path().join("resume-profile.log");
     let script_path = npm_dir.join("codex.cmd");
-    let script = format!(
-        "@echo off\r\necho %* > \"{}\"\r\nexit /b 0\r\n",
-        log_path.display()
-    );
-    fs::write(&script_path, script).expect("write fake codex");
+    write_fake_codex_script(&script_path, &log_path);
 
     let output = run_cli_text_with_input_and_env(
         &[
