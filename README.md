@@ -4,6 +4,8 @@
 
 A cross-platform CLI and GUI tool for diagnosing and repairing local Codex state issues.
 
+`codex-doctor` is built to fix Codex local session-state chain mismatches — the class of problems where history still exists on disk, but sessions become invisible, indexes drift out of sync, metadata conflicts appear, and manual repair is risky.
+
 ## Current Status
 
 - **What is covered today**:

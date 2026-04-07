@@ -783,14 +783,7 @@ pub fn execution_status(report: &RepairExecutionReport) -> String {
     if let Some(hint) = report
         .failed
         .iter()
-        .chain(report.skipped.iter())
-        .find_map(|entry| {
-            if entry.retryable {
-                retryable_hint(&entry.message)
-            } else {
-                None
-            }
-        })
+        .find_map(|entry| retryable_hint(&entry.message))
     {
         format!("{summary} — Next: {hint}")
     } else {
@@ -815,7 +808,7 @@ fn collect_execution_actions(report: &RepairExecutionReport) -> Vec<RepairAction
             thread_id: action_thread_id(&entry.action),
             details: entry.message.clone(),
             status: doctor_core::ActionStatus::Applied,
-            retryable: entry.retryable,
+            retryable: false,
         });
     }
     for entry in &report.skipped {
@@ -824,7 +817,7 @@ fn collect_execution_actions(report: &RepairExecutionReport) -> Vec<RepairAction
             thread_id: action_thread_id(&entry.action),
             details: entry.message.clone(),
             status: doctor_core::ActionStatus::Skipped,
-            retryable: entry.retryable,
+            retryable: retryable_hint(&entry.message).is_some(),
         });
     }
     for entry in &report.failed {
@@ -833,7 +826,7 @@ fn collect_execution_actions(report: &RepairExecutionReport) -> Vec<RepairAction
             thread_id: action_thread_id(&entry.action),
             details: entry.message.clone(),
             status: doctor_core::ActionStatus::Failed,
-            retryable: entry.retryable,
+            retryable: retryable_hint(&entry.message).is_some(),
         });
     }
 

@@ -3,6 +3,8 @@
 ## 1. 项目定义
 `codex-doctor` 是一个面向 Codex 本地 `.codex` 数据目录的 **跨平台 CLI + GUI 修复工具**。
 
+更准确地说，它是为了解决 **Codex 本地会话状态链失配** 这个问题：历史会话明明仍在磁盘上，但由于 `sessions/`、`archived_sessions/`、`state_5.sqlite`、`config.toml` 以及相关本地状态面不一致，导致会话不可见、索引错乱、元数据冲突，且用户难以安全手工修复。
+
 它的目标不是替代官方 Codex，也不是处理账号认证，而是解决以下本地状态问题：
 - provider 切换后历史会话不可见
 - `sessions/` 与 `archived_sessions/` 数据错位
