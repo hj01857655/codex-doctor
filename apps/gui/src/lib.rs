@@ -772,13 +772,30 @@ pub fn render_dashboard_text(view_model: &DashboardViewModel) -> String {
     lines.join("\n")
 }
 
-fn execution_status(report: &RepairExecutionReport) -> String {
-    format!(
+pub fn execution_status(report: &RepairExecutionReport) -> String {
+    let summary = format!(
         "Applied: {}, Skipped: {}, Failed: {}",
         report.applied.len(),
         report.skipped.len(),
         report.failed.len()
-    )
+    );
+
+    if let Some(hint) = report
+        .failed
+        .iter()
+        .chain(report.skipped.iter())
+        .find_map(|entry| {
+            if entry.retryable {
+                retryable_hint(&entry.message)
+            } else {
+                None
+            }
+        })
+    {
+        format!("{summary} — Next: {hint}")
+    } else {
+        summary
+    }
 }
 
 fn render_preview_summary(preview_actions: &[String]) -> String {
@@ -798,6 +815,7 @@ fn collect_execution_actions(report: &RepairExecutionReport) -> Vec<RepairAction
             thread_id: action_thread_id(&entry.action),
             details: entry.message.clone(),
             status: doctor_core::ActionStatus::Applied,
+            retryable: entry.retryable,
         });
     }
     for entry in &report.skipped {
@@ -806,6 +824,7 @@ fn collect_execution_actions(report: &RepairExecutionReport) -> Vec<RepairAction
             thread_id: action_thread_id(&entry.action),
             details: entry.message.clone(),
             status: doctor_core::ActionStatus::Skipped,
+            retryable: entry.retryable,
         });
     }
     for entry in &report.failed {
@@ -814,6 +833,7 @@ fn collect_execution_actions(report: &RepairExecutionReport) -> Vec<RepairAction
             thread_id: action_thread_id(&entry.action),
             details: entry.message.clone(),
             status: doctor_core::ActionStatus::Failed,
+            retryable: entry.retryable,
         });
     }
 
@@ -851,6 +871,15 @@ fn open_path_in_file_manager(path: &Path) -> Result<(), String> {
 
     command.spawn().map_err(|err| err.to_string())?;
     Ok(())
+}
+
+fn retryable_hint(message: &str) -> Option<&'static str> {
+    let lower = message.to_ascii_lowercase();
+    if lower.contains("locked") || lower.contains("busy") || lower.contains("used by another process") {
+        Some("close Codex or any process holding the file/database, then retry")
+    } else {
+        None
+    }
 }
 
 pub fn status_banner_kind(status_message: &str, last_error: Option<&str>) -> StatusBannerKind {

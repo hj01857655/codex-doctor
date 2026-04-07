@@ -176,6 +176,17 @@ fn run() -> Result<(), String> {
             if args.json {
                 print_json(&repair_execution_report_to_json(&execution_report, &plan))?;
             } else {
+                let retryable_hint = execution_report
+                    .failed
+                    .iter()
+                    .chain(execution_report.skipped.iter())
+                    .find_map(|entry| {
+                        if entry.retryable {
+                            retryable_hint(&entry.message)
+                        } else {
+                            None
+                        }
+                    });
                 print_repair_execution_human(
                     execution_report.applied.len(),
                     execution_report.skipped.len(),
@@ -184,6 +195,7 @@ fn run() -> Result<(), String> {
                         .backup
                         .as_ref()
                         .map(|b| b.backup_id.as_str()),
+                    retryable_hint,
                 );
             }
         }
@@ -320,6 +332,7 @@ fn repair_execution_entry_to_json(entry: &RepairExecutionEntry) -> Value {
     json!({
         "action": repair_action_to_json(&entry.action),
         "message": entry.message,
+        "retryable": entry.retryable,
     })
 }
 
@@ -412,6 +425,7 @@ fn repair_history_entry_to_json(entry: &doctor_core::RepairHistoryEntry) -> Valu
             "action_type": a.action_type,
             "thread_id": a.thread_id,
             "details": a.details,
+            "retryable": a.retryable,
             "status": match a.status {
                 doctor_core::ActionStatus::Applied => "applied",
                 doctor_core::ActionStatus::Skipped => "skipped",
@@ -436,6 +450,15 @@ fn problem_code_to_str(code: &ProblemCode) -> &'static str {
         ProblemCode::UnreadableLogsSqlite => "unreadable_logs_sqlite",
         ProblemCode::MissingHistoryJsonl => "missing_history_jsonl",
         ProblemCode::UnreadableHistoryJsonl => "unreadable_history_jsonl",
+    }
+}
+
+fn retryable_hint(message: &str) -> Option<&'static str> {
+    let lower = message.to_ascii_lowercase();
+    if lower.contains("locked") || lower.contains("busy") || lower.contains("used by another process") {
+        Some("close Codex or any process holding the file/database, then retry the operation")
+    } else {
+        None
     }
 }
 

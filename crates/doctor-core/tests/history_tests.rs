@@ -24,12 +24,14 @@ fn sample_execution_report_with_entries(history_root: &std::path::Path) -> Repai
                 provider: "openai".to_string(),
             },
             message: "patched config model_provider to openai".to_string(),
+            retryable: false,
         }],
         skipped: vec![RepairExecutionEntry {
             action: RepairAction::MoveRolloutToArchive {
                 thread_id: "thread-skipped".to_string(),
             },
             message: "dry-run".to_string(),
+            retryable: true,
         }],
         failed: vec![RepairExecutionEntry {
             action: RepairAction::RewriteRolloutSessionMeta {
@@ -37,6 +39,7 @@ fn sample_execution_report_with_entries(history_root: &std::path::Path) -> Repai
                 provider: "anthropic".to_string(),
             },
             message: "rewrite failed".to_string(),
+            retryable: false,
         }],
     }
 }
@@ -128,10 +131,12 @@ fn save_repair_history_persists_action_statuses() {
         matches!(action.status, doctor_core::ActionStatus::Skipped)
             && action.action_type == "move_rollout_to_archive"
             && action.thread_id.as_deref() == Some("thread-skipped")
+            && action.retryable
     }));
     assert!(entry.actions.iter().any(|action| {
         matches!(action.status, doctor_core::ActionStatus::Failed)
             && action.action_type == "rewrite_rollout_session_meta"
             && action.thread_id.as_deref() == Some("thread-failed")
+            && !action.retryable
     }));
 }

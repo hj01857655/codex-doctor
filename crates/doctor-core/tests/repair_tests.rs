@@ -1,10 +1,12 @@
 use std::fs;
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 
 use doctor_core::{
     execute_repair_plan, list_backups, read_root_config_snapshot, read_thread_by_id, CodexLayout,
     RepairAction, RepairPlan,
 };
+use fs4::FileExt;
 use rusqlite::{params, Connection};
 use tempfile::tempdir;
 
@@ -260,4 +262,58 @@ fn dry_run_causes_zero_writes() {
     assert!(list_backups(backups_root.path())
         .expect("list backups")
         .is_empty());
+}
+
+#[test]
+fn locked_sqlite_write_is_skipped_as_retryable() {
+    let codex_home = prepare_codex_home();
+    let backups_root = tempdir().expect("create backups root");
+    let layout = CodexLayout::from_codex_home(codex_home.path());
+    let locker = Connection::open(&layout.state_db).expect("open sqlite locker");
+    locker
+        .execute_batch("BEGIN EXCLUSIVE")
+        .expect("lock sqlite");
+
+    let plan = RepairPlan {
+        actions: vec![RepairAction::UpsertSqliteThreadMetadata {
+            thread_id: ACTIVE_THREAD_ID.to_string(),
+        }],
+    };
+
+    let report = execute_repair_plan(codex_home.path(), backups_root.path(), &plan, false)
+        .expect("execute repair plan");
+
+    assert!(report.applied.is_empty());
+    assert!(report.failed.is_empty());
+    assert_eq!(report.skipped.len(), 1);
+    assert!(report.skipped[0].retryable);
+}
+
+#[test]
+fn locked_rollout_write_is_skipped_as_retryable() {
+    let codex_home = prepare_codex_home();
+    let backups_root = tempdir().expect("create backups root");
+    let layout = CodexLayout::from_codex_home(codex_home.path());
+    let rollout_path = layout.sessions_dir.join(ACTIVE_ROLLOUT_FILENAME);
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&rollout_path)
+        .expect("open rollout");
+    file.try_lock_exclusive().expect("lock rollout");
+
+    let plan = RepairPlan {
+        actions: vec![RepairAction::RewriteRolloutSessionMeta {
+            thread_id: ACTIVE_THREAD_ID.to_string(),
+            provider: "mirror".to_string(),
+        }],
+    };
+
+    let report = execute_repair_plan(codex_home.path(), backups_root.path(), &plan, false)
+        .expect("execute repair plan");
+
+    assert!(report.applied.is_empty());
+    assert!(report.failed.is_empty());
+    assert_eq!(report.skipped.len(), 1);
+    assert!(report.skipped[0].retryable);
 }

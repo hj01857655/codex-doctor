@@ -477,6 +477,24 @@ fn status_banner_kind_hides_empty_status_without_error() {
 }
 
 #[test]
+fn execution_status_includes_retryable_hint_for_locked_failures() {
+    let report = RepairExecutionReport {
+        failed: vec![doctor_core::RepairExecutionEntry {
+            action: doctor_core::RepairAction::PatchConfigModelProvider {
+                provider: "openai".to_string(),
+            },
+            message: "database is locked by another process".to_string(),
+            retryable: true,
+        }],
+        ..RepairExecutionReport::default()
+    };
+
+    let status = gui::execution_status(&report);
+    assert!(status.contains("Next:"));
+    assert!(status.contains("retry"));
+}
+
+#[test]
 fn dashboard_clipboard_text_includes_summary_problems_and_last_operation() {
     let codex_home = prepare_codex_home();
     fs::write(codex_home.path().join("config.toml"), "").expect("clear config");

@@ -66,6 +66,7 @@ pub fn print_scan_report_human(report: &ScanReport) {
             .as_deref()
             .unwrap_or("(not set)")
     );
+    println!();
 
     if !report.providers.rollout.is_empty() || !report.providers.sqlite.is_empty() {
         println!("🔧 Provider Distribution:");
@@ -134,6 +135,7 @@ pub fn print_repair_execution_human(
     skipped: usize,
     failed: usize,
     backup_id: Option<&str>,
+    retryable_hint: Option<&str>,
 ) {
     println!("╔═══════════════════════════════════════════════════════════════╗");
     println!("║                Codex Doctor - Repair Execution               ║");
@@ -153,6 +155,9 @@ pub fn print_repair_execution_human(
 
     if failed > 0 {
         println!("❌ Some actions failed. Check the detailed output above.");
+        if let Some(hint) = retryable_hint {
+            println!("↻ Next step: {hint}");
+        }
     } else if applied > 0 {
         println!("✅ Repair completed successfully!");
     } else {
@@ -292,9 +297,10 @@ fn print_repair_action_record(action: &RepairActionRecord) {
         doctor_core::ActionStatus::Skipped => "○",
         doctor_core::ActionStatus::Failed => "✗",
     };
+    let retryable_suffix = if action.retryable { " (retryable)" } else { "" };
     println!(
-        "       {} {} - {}",
-        status_icon, action.action_type, action.details
+        "       {} {}{} - {}",
+        status_icon, action.action_type, retryable_suffix, action.details
     );
 }
 

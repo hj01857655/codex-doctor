@@ -23,6 +23,7 @@ pub struct RepairActionRecord {
     pub thread_id: Option<String>,
     pub details: String,
     pub status: ActionStatus,
+    pub retryable: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,6 +55,7 @@ pub fn save_repair_history(
             thread_id: extract_thread_id(&entry.action),
             details: entry.message.clone(),
             status: ActionStatus::Applied,
+            retryable: entry.retryable,
         });
     }
     for entry in &report.skipped {
@@ -62,6 +64,7 @@ pub fn save_repair_history(
             thread_id: extract_thread_id(&entry.action),
             details: entry.message.clone(),
             status: ActionStatus::Skipped,
+            retryable: entry.retryable,
         });
     }
     for entry in &report.failed {
@@ -70,6 +73,7 @@ pub fn save_repair_history(
             thread_id: extract_thread_id(&entry.action),
             details: entry.message.clone(),
             status: ActionStatus::Failed,
+            retryable: entry.retryable,
         });
     }
 
