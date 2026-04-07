@@ -115,11 +115,22 @@ fn flags_resume_picker_provider_filtered() {
     report.sqlite_threads[0].model_provider = "anthropic".to_string();
 
     let diagnosis = diagnose(&report);
-
-    assert!(diagnosis
+    let problem = diagnosis
         .problems
         .iter()
-        .any(|problem| problem.code == ProblemCode::ResumePickerProviderFiltered));
+        .find(|problem| problem.code == ProblemCode::ResumePickerProviderFiltered)
+        .expect("provider filtered problem");
+
+    assert!(problem
+        .evidence
+        .iter()
+        .any(|line| line.contains("codex resume thr_123")));
+    assert!(problem
+        .suggested_fix_ids
+        .contains(&"resume_by_thread_id".to_string()));
+    assert!(problem
+        .suggested_fix_ids
+        .contains(&"switch_root_provider_for_resume".to_string()));
 }
 
 #[test]
@@ -132,11 +143,19 @@ fn flags_resume_picker_archived_filtered() {
     report.summary.archived_rollout_count = 1;
 
     let diagnosis = diagnose(&report);
-
-    assert!(diagnosis
+    let problem = diagnosis
         .problems
         .iter()
-        .any(|problem| problem.code == ProblemCode::ResumePickerArchivedFiltered));
+        .find(|problem| problem.code == ProblemCode::ResumePickerArchivedFiltered)
+        .expect("archived filtered problem");
+
+    assert!(problem
+        .evidence
+        .iter()
+        .any(|line| line.contains("codex resume thr_123")));
+    assert!(problem
+        .suggested_fix_ids
+        .contains(&"resume_by_thread_id".to_string()));
     assert!(!diagnosis
         .problems
         .iter()

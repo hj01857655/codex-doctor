@@ -141,6 +141,7 @@ CLI 和 GUI 都只消费这层能力。
 
 - `ResumePickerProviderFiltered` 用来解释“session 还在，但当前 root provider 变化后，默认 resume picker 可能把它过滤掉”
 - `ResumePickerArchivedFiltered` 用来解释“session 已归档，默认 resume picker 只列非归档会话”
+- 这两类诊断现在都会附带直接恢复指引，优先提示 `codex resume <thread_id>`
 
 ### 6.3 修复动作
 

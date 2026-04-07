@@ -295,6 +295,32 @@ fn diagnose_json_reports_resume_picker_provider_filtered() {
 }
 
 #[test]
+fn diagnose_text_reports_direct_resume_recovery_guidance() {
+    let codex_home = prepare_codex_home();
+    let rollout_path = codex_home
+        .path()
+        .join("sessions")
+        .join("rollout-2026-01-27T12-34-56-00000000-0000-0000-0000-000000000123.jsonl");
+    rewrite_rollout_provider(&rollout_path, "anthropic");
+    update_thread_provider(
+        &codex_home.path().join("state_5.sqlite"),
+        "00000000-0000-0000-0000-000000000123",
+        "anthropic",
+        None,
+    );
+
+    let output = run_cli_text(&[
+        "diagnose",
+        "--codex-home",
+        codex_home.path().to_str().expect("codex home path"),
+    ]);
+
+    assert!(output.contains("ResumePickerProviderFiltered"));
+    assert!(output.contains("codex resume 00000000-0000-0000-0000-000000000123"));
+    assert!(output.contains("switch_root_provider_for_resume"));
+}
+
+#[test]
 fn repair_dry_run_json_outputs_execution_report() {
     let codex_home = prepare_codex_home();
     let backups_root = tempdir().expect("create backups root");

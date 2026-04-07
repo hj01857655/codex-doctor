@@ -208,11 +208,17 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
                     problems.push(DiagnosisProblem {
                         code: ProblemCode::ResumePickerArchivedFiltered,
                         severity: ProblemSeverity::Info,
-                        evidence: vec![format!(
-                            "thread {} is archived; default Codex resume picker only lists non-archived sessions",
-                            rollout.thread_id
-                        )],
-                        suggested_fix_ids: Vec::new(),
+                        evidence: vec![
+                            format!(
+                                "thread {} is archived; default Codex resume picker only lists non-archived sessions",
+                                rollout.thread_id
+                            ),
+                            format!(
+                                "direct recovery: run `codex resume {}` to reopen this session without changing archive state",
+                                rollout.thread_id
+                            ),
+                        ],
+                        suggested_fix_ids: vec!["resume_by_thread_id".to_string()],
                     });
                 }
 
@@ -228,11 +234,24 @@ pub fn diagnose(report: &ScanReport) -> DiagnosisReport {
                             problems.push(DiagnosisProblem {
                                 code: ProblemCode::ResumePickerProviderFiltered,
                                 severity: ProblemSeverity::Info,
-                                evidence: vec![format!(
-                                    "thread {} uses provider {}, but current config model_provider is {}; default Codex resume picker filters by current provider, so this session may be hidden",
-                                    rollout.thread_id, rollout_provider, root_provider
-                                )],
-                                suggested_fix_ids: Vec::new(),
+                                evidence: vec![
+                                    format!(
+                                        "thread {} uses provider {}, but current config model_provider is {}; default Codex resume picker filters by current provider, so this session may be hidden",
+                                        rollout.thread_id, rollout_provider, root_provider
+                                    ),
+                                    format!(
+                                        "direct recovery: run `codex resume {}` to reopen this session even when the default picker hides it",
+                                        rollout.thread_id
+                                    ),
+                                    format!(
+                                        "visibility recovery: switch config model_provider back to {} before using the default resume picker",
+                                        rollout_provider
+                                    ),
+                                ],
+                                suggested_fix_ids: vec![
+                                    "resume_by_thread_id".to_string(),
+                                    "switch_root_provider_for_resume".to_string(),
+                                ],
                             });
                         }
                     }
