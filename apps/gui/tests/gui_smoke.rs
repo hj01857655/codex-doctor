@@ -2,7 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use doctor_core::{create_backup_snapshot, save_repair_history, RepairExecutionReport};
-use gui::{load_dashboard_view_model, status_banner_kind, CodexDoctorApp, StatusBannerKind};
+use gui::{
+    default_codex_home_from_env, load_dashboard_view_model, status_banner_kind, CodexDoctorApp,
+    StatusBannerKind,
+};
 use rusqlite::{params, Connection};
 use tempfile::tempdir;
 
@@ -215,6 +218,38 @@ fn new_with_invalid_codex_home_records_error() {
 
     assert!(app.dashboard.is_none());
     assert!(app.last_error.is_some());
+}
+
+#[test]
+fn default_codex_home_prefers_explicit_codex_home_env() {
+    let path = default_codex_home_from_env(
+        Some(PathBuf::from("D:/state-home")),
+        Some(PathBuf::from("C:/Users/tester")),
+        Some(PathBuf::from("/home/tester")),
+        PathBuf::from("E:/fallback"),
+    );
+
+    assert_eq!(path, PathBuf::from("D:/state-home"));
+}
+
+#[test]
+fn default_codex_home_falls_back_to_user_profile_dot_codex() {
+    let path = default_codex_home_from_env(
+        None,
+        Some(PathBuf::from("C:/Users/tester")),
+        Some(PathBuf::from("/home/tester")),
+        PathBuf::from("E:/fallback"),
+    );
+
+    assert_eq!(path, PathBuf::from("C:/Users/tester/.codex"));
+}
+
+#[test]
+fn default_codex_home_uses_current_dir_only_when_no_envs_exist() {
+    let path =
+        default_codex_home_from_env(None, None, None, PathBuf::from("E:/unzipped/codex-doctor"));
+
+    assert_eq!(path, PathBuf::from("E:/unzipped/codex-doctor"));
 }
 
 #[test]

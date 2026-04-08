@@ -40,6 +40,18 @@ pub struct DashboardViewModel {
     pub preview_actions: Vec<String>,
 }
 
+pub fn default_codex_home_from_env(
+    codex_home: Option<PathBuf>,
+    user_profile: Option<PathBuf>,
+    home: Option<PathBuf>,
+    current_dir: PathBuf,
+) -> PathBuf {
+    codex_home
+        .or_else(|| user_profile.map(|path| path.join(".codex")))
+        .or_else(|| home.map(|path| path.join(".codex")))
+        .unwrap_or(current_dir)
+}
+
 pub fn load_dashboard_view_model(codex_home: &Path) -> Result<DashboardViewModel, String> {
     load_dashboard_view_model_with_sqlite_home(codex_home, None)
 }
